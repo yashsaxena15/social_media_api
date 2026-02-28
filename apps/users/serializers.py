@@ -4,10 +4,13 @@ from django.contrib.auth import get_user_model  # Returns the active User model 
 
 # serializer works for reading and deserializer works for writing
 class ProfileSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username",read_only = True)  # for adding username field in my profile view
+    email = serializers.CharField(source = "user.email",read_only = True)
+    
     class Meta:
         model = Profile
-        fields = "__all__"
-
+        # fields = "__all__"
+        fields = ["username","email","full_name", "bio", "profile_image"]
 
 User = get_user_model() # → returns YOUR custom User, Give me whichever User model this project uses.
 

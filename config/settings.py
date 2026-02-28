@@ -135,7 +135,7 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),  # access token will expire in 30minutes
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=5),  # access token will expire in 30minutes
     "REFRESH_TOKEN_LIFETIME":timedelta(days = 30)    # refresh token will expire in 30 days
     
 }

@@ -1,6 +1,6 @@
 from django.urls import path
-from .views import (profile_list,profile_detail,
-                    profile_update,profile_delete,register_user,
+from .views import (profile_list,
+                    profile_update,my_profile,register_user,
                     test_user,delete_user,update_user)
 
 
@@ -11,9 +11,11 @@ urlpatterns = [
     
     # path("profile-create/",profile_create), # No longer use because we are using Auto Profile creation when user created
 
-    path("profile/<int:user_id>/",profile_detail),
-    path("profile-update/<int:user_id>/",profile_update),
-    path("profile-delete/<int:user_id>/",profile_delete),
+    # path("profile/me/",profile_detail),
+    path("profile/",my_profile),
+    # path("profile-update/<int:user_id>/",profile_update),
+    path("profile-update/",profile_update),
+    # path("profile-delete/<int:user_id>/",profile_delete),  # We are not implementing this because of using this profile delete but user remains, user delete then profile auto delete 
 
     # User Section -->
     

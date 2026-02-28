@@ -37,50 +37,78 @@ def profile_list(request): # request is an object representing the incoming requ
 
 # -------- GET PROFILE --------
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def profile_detail(request, user_id):
+# @api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+# def profile_detail(request, user_id):
     
-    # profile = get_object_or_404(Profile,user=user_id) # Automatic 
-    try:                                                # Manual way 
-        profile = Profile.objects.get(user=user_id)
-    except Profile.DoesNotExist:
-        return Response({"error": "Profile not found"}, status=404)
+#     # profile = get_object_or_404(Profile,user=user_id) # Automatic 
+#     try:                                                # Manual way 
+#         profile = Profile.objects.get(user=user_id)
+#     except Profile.DoesNotExist:
+#         return Response({"error": "Profile not found"}, status=404)
     
 
+#     serializer = ProfileSerializer(profile)
+
+#     return Response(serializer.data)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])   # Get the current user profile
+def my_profile(request):
+
+    profile = request.user.profile
     serializer = ProfileSerializer(profile)
 
     return Response(serializer.data)
 
 # -------- UPDATE PROFILE --------
 
+# @api_view(["PATCH"])
+# @permission_classes([IsAuthenticated])
+# def profile_update(request, user_id):
+    
+#     profile = get_object_or_404(Profile,user=user_id)
+
+#     serializer = ProfileSerializer(profile,data = request.data, partial = True) # partial = True --> means only update these fields that provided
+
+#     if serializer.is_valid():
+#         serializer.save()
+#         return Response(serializer.data)
+#     return Response(serializer.errors,status=400)
+
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
-def profile_update(request, user_id):
-    
-    profile = get_object_or_404(Profile,user=user_id)
+def profile_update(request):
 
-    serializer = ProfileSerializer(profile,data = request.data, partial = True) # partial = True --> means only update these fields that provided
+    profile = request.user.profile      # Get the current user profile
+
+    serializer = ProfileSerializer(
+        profile,
+        data=request.data,
+        partial=True
+    )
 
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data)
-    return Response(serializer.errors,status=400)
+
+    return Response(serializer.errors, status=400)
+
 
 # -------- DELETE PROFILE --------
 
-@api_view(["DELETE"])
-@permission_classes([IsAuthenticated])
-def profile_delete(request, user_id):
+# @api_view(["DELETE"])                 # We are not implementing this because of using this profile delete but user remains, user delete then profile auto delete 
+# @permission_classes([IsAuthenticated])
+# def profile_delete(request, user_id):
     
-    try:
-        profile = Profile.objects.get(user=user_id)
-    except Profile.DoesNotExist:
-        return Response({"error":"User not found"},status=404)
+#     try:
+#         profile = Profile.objects.get(user=user_id)
+#     except Profile.DoesNotExist:
+#         return Response({"error":"User not found"},status=404)
 
-    profile.delete()
+#     profile.delete()
 
-    return Response({"message":"Profile deleted successfully"}, status=204)
+#     return Response({"message":"Profile deleted successfully"}, status=204)
 
 # -------- Register User --------
 
