@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (profile_list,
                     profile_update,my_profile,register_user,
-                    test_user,delete_user,update_user)
+                    test_user,delete_user,update_user,logout_user)
 
 
 urlpatterns = [
@@ -20,8 +20,10 @@ urlpatterns = [
     # User Section -->
     
     path("register/", register_user),  # Register user url
-    path("delete-user/", delete_user),
     path("update-user/", update_user),
+    path("logout-user/", logout_user),
+    path("delete-user/", delete_user),
     
-    path("me/", test_user),
+    
+    path("me/", test_user), # for checking who logged in!
 ]

@@ -4,7 +4,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Profile
 from .serializers import ProfileSerializer,RegisterSerializer,UserUpdateSerializer
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated,AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 # Create your views here.
@@ -12,6 +13,7 @@ from rest_framework.permissions import IsAuthenticated
 # -------- GET ALL PROFILES --------
 
 @api_view(["GET"]) # that means client sending GET request
+@permission_classes([AllowAny]) # Anyone can access 
 def profile_list(request): # request is an object representing the incoming request from the client.
     
     profiles = Profile.objects.all() # fetching all the objects/ profiles from the model Profile 
@@ -122,17 +124,6 @@ def register_user(request):
         return Response(serializer.data,status=201)
     return Response(serializer.errors, status=400)
 
-# -------- Delete User --------
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def delete_user(request):
-    
-    user = request.user # currently logged-in user
-    user.delete()
-
-    return Response({'message':"User deleted successfully"},status=200)
-    
 # -------- Update User --------
     
 @api_view(["PATCH"])
@@ -147,6 +138,33 @@ def update_user(request):
         return Response(serializer.data)
     
     return Response(serializer.errors, status = 400)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+
+def logout_user(request):
+    
+    try:
+        refresh_token = request.data["refresh"]
+        token = RefreshToken(refresh_token)
+        token.blacklist()
+
+        return Response({"message": "Logged out successfully"})
+    except Exception:
+        return Response({"error":"Invalid Token"}, status=400)
+
+# -------- Delete User --------
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def delete_user(request):
+    
+    user = request.user # currently logged-in user
+    user.delete()
+
+    return Response({'message':"User deleted successfully"},status=200)
+    
+
     
     
 # -------- Check Who logged in --------
