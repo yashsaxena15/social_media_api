@@ -6,6 +6,7 @@ from .models import Profile
 from .serializers import ProfileSerializer,RegisterSerializer,UserUpdateSerializer
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.pagination import PageNumberPagination
 
 
 # Create your views here.
@@ -17,7 +18,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 def profile_list(request): # request is an object representing the incoming request from the client.
     
     profiles = Profile.objects.all() # fetching all the objects/ profiles from the model Profile 
-    serializer = ProfileSerializer(instance = profiles,many = True) # many is used to send multiple objects to serializer
+    paginator = PageNumberPagination() # we have write it manually in FBV to paginate views by creating queryset
+    paginator.page_size = 1
+
+    result_page = paginator.paginate_queryset(profiles, request)
+    serializer = ProfileSerializer(instance = result_page,many = True) # many is used to send multiple objects to serializer
     
     return Response(serializer.data)
 
@@ -80,6 +85,7 @@ def my_profile(request):
 
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
+
 def profile_update(request):
 
     profile = request.user.profile      # Get the current user profile
@@ -124,6 +130,7 @@ def register_user(request):
         return Response(serializer.data,status=201)
     return Response(serializer.errors, status=400)
 
+
 # -------- Update User --------
     
 @api_view(["PATCH"])
@@ -164,9 +171,6 @@ def delete_user(request):
 
     return Response({'message':"User deleted successfully"},status=200)
     
-
-    
-    
 # -------- Check Who logged in --------
 
 @api_view(["GET"])
@@ -176,4 +180,5 @@ def test_user(request):
     print(request.user)
 
     return Response({"user": str(request.user), "username": str(request.user.username), "email": str(request.user.email)})
+
 

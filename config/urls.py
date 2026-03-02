@@ -16,7 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path,include
-from rest_framework_simplejwt.views import TokenObtainPairView,TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView
+from apps.users.throttles import CustomTokenObtainPairView
 
 #  What TokenObtainPairView does secretly
 # Internally it:
@@ -25,11 +26,11 @@ from rest_framework_simplejwt.views import TokenObtainPairView,TokenRefreshView
 # 3️⃣ generates JWT token
 # 4️⃣ returns response
 # Now let’s write this ourselves.
-
+    
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/users/",include("apps.users.urls")), # apps.users.urls path to apps urls 
 
-    path("api/token/",TokenObtainPairView.as_view()), # When someone visits /api/token/, run JWT login logic automatically. This view comes from rest_framework_simplejwt.views package
+    path("api/token/",CustomTokenObtainPairView.as_view()), # When someone visits /api/token/, run JWT login logic automatically. This view comes from rest_framework_simplejwt.views package
     path("api/token/refresh/",TokenRefreshView.as_view()), # this view is used to refresh jwt token
 ]
