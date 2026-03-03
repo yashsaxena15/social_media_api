@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'apps.users', # because users app is inside apps folder
     'rest_framework', # to get api view in browser instead of rendering html template
     "rest_framework_simplejwt.token_blacklist", # Enable Token Blacklist App -- used to store blacklisted tokens(access + refresh) that tells jwt to consider these tokens are blacklisted, after that run migrate that create table in db
+    "apps.posts",
 ]
 
 MIDDLEWARE = [
