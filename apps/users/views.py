@@ -24,7 +24,7 @@ def profile_list(request): # request is an object representing the incoming requ
     result_page = paginator.paginate_queryset(profiles, request)
     serializer = ProfileSerializer(instance = result_page,many = True) # many is used to send multiple objects to serializer
     
-    return Response(serializer.data)
+    return paginator.get_paginated_response(serializer.data)
 
 # -------- CREATE PROFILE --------
 

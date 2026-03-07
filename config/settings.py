@@ -37,6 +37,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
+    # later added fields ---> 
+    
     'apps.users', # because users app is inside apps folder
     'rest_framework', # to get api view in browser instead of rendering html template
     "rest_framework_simplejwt.token_blacklist", # Enable Token Blacklist App -- used to store blacklisted tokens(access + refresh) that tells jwt to consider these tokens are blacklisted, after that run migrate that create table in db
@@ -154,3 +157,6 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME":timedelta(days = 30)    # refresh token will expire in 30 days
     
 }
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"

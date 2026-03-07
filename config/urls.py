@@ -14,11 +14,13 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
 from django.urls import path,include
 from rest_framework_simplejwt.views import TokenRefreshView
 from apps.users.throttles import CustomTokenObtainPairView
-
+from django.conf import settings
+from django.conf.urls.static import static
 #  What TokenObtainPairView does secretly
 # Internally it:
 # 1️⃣ takes username + password
@@ -26,7 +28,8 @@ from apps.users.throttles import CustomTokenObtainPairView
 # 3️⃣ generates JWT token
 # 4️⃣ returns response
 # Now let’s write this ourselves.
-    
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/users/",include("apps.users.urls")), # apps.users.urls path to apps urls 
@@ -37,3 +40,5 @@ urlpatterns = [
     path("api/posts/",include("apps.posts.urls")),
     
 ]
+ 
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)  # for accessing images
