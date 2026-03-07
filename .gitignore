@@ -16,3 +16,7 @@ mysql.sql
 
 # Environment
 .env
+
+# Media
+
+media/
