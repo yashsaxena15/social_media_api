@@ -16,8 +16,8 @@ class User(AbstractUser):  # it is use for creating custom user giving us more f
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE,related_name="profile")
     full_name = models.CharField(max_length=100)
-    bio = models.TextField(blank=True)
-    profile_image = models.ImageField(upload_to="media/profiles/",blank=True,null=True)
+    bio = models.CharField(blank=True, max_length=200)
+    profile_image = models.ImageField(upload_to="profiles/",blank=True,null=True)
 
 
     def __str__(self):
