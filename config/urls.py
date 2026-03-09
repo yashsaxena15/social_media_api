@@ -37,7 +37,7 @@ urlpatterns = [
     path("api/token/",CustomTokenObtainPairView.as_view()), # When someone visits /api/token/, run JWT login logic automatically. This view comes from rest_framework_simplejwt.views package
     path("api/token/refresh/",TokenRefreshView.as_view()), # this view is used to refresh jwt token
 
-    path("api/posts/",include("apps.posts.urls")),
+    path("api/",include("apps.posts.urls")),
     
 ]
  

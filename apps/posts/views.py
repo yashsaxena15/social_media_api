@@ -3,8 +3,8 @@ from rest_framework import status
 from rest_framework.decorators import api_view,permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .serializers import PostSerializer
-from .models import Post, Like
+from .serializers import PostSerializer, CommentSerializer
+from .models import Post, Like, Comment
 from rest_framework.pagination import PageNumberPagination
 # Create your views here.
 
@@ -104,3 +104,68 @@ def toggle_like(request, post_id):
     else:
         Like.objects.create(user=request.user, post=post)
         return Response({"message":"Post liked"}, status=status.HTTP_201_CREATED)
+    
+# ------Comment Section------
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+
+def create_comment(request, post_id):
+    
+    post = get_object_or_404(Post, id = post_id)
+    
+    serializer = CommentSerializer(data= request.data)
+    
+    if serializer.is_valid():
+        serializer.save(user = request.user, post = post)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+
+def get_comments(request, post_id):
+    
+    post = get_object_or_404(Post,id = post_id)
+    comments = post.comments.all().order_by("-created_at")
+    paginator = PageNumberPagination()
+    paginator.page_size = 1
+
+    result_page = paginator.paginate_queryset(queryset=comments, request=request)
+    
+    serializer = CommentSerializer(result_page, many = True)
+
+    return paginator.get_paginated_response(serializer.data)
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+
+def update_comment(request, comment_id):
+    
+    comment = get_object_or_404(Comment, id = comment_id)
+
+    if comment.user != request.user:
+        return Response({"error":"You can't update this comment"}, status=status.HTTP_403_FORBIDDEN)
+    
+    serializer = CommentSerializer(comment, data = request.data, partial = True)
+
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data) # Django by default sends 201 ok status on this
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+
+def delete_comment(request, comment_id):
+    
+    comment = get_object_or_404(Comment, id = comment_id )
+
+    if comment.user != request.user:
+        return Response({"error":"You can't delete this comment"}, status=status.HTTP_403_FORBIDDEN)
+    
+    comment.delete()
+    return Response({"message":"Comment deleted"}, status=status.HTTP_200_OK)
+
