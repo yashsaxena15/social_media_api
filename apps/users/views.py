@@ -2,8 +2,8 @@ from django.shortcuts import render,get_object_or_404
 from rest_framework.decorators import api_view,permission_classes
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Profile
-from .serializers import ProfileSerializer,RegisterSerializer,UserUpdateSerializer
+from .models import Profile, User, Follow
+from .serializers import ProfileSerializer,RegisterSerializer,UserUpdateSerializer, FollowSerializer, FollowingSerializer, FollowerSerializer
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.pagination import PageNumberPagination
@@ -182,3 +182,48 @@ def test_user(request):
     return Response({"user": str(request.user), "username": str(request.user.username), "email": str(request.user.email)})
 
 
+# ----- Toggle Follow/ Unfollow (Follow → Unfollow → Follow) ------ 
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+
+def toggle_follow(request, user_id):
+    
+    user_to_follow = get_object_or_404(User, id = user_id)
+
+    if request.user == user_to_follow :
+        return Response({"errors":"You can't follow yourself!"}, status=status.HTTP_400_BAD_REQUEST    )
+    
+    follow = Follow.objects.filter(follower = request.user, following = user_to_follow).first()
+    # this return a queryset for follower = request.user, following = user_to_follow <QuerySet [Follow object]> With .first(): it will give ----> Follow object
+
+    if follow:
+        follow.delete()
+        return Response({"message":"Unfollowed"}, status=status.HTTP_200_OK)
+    
+    Follow.objects.create(follower = request.user, following = user_to_follow)
+
+    return Response({"message":"Followed"}, status=status.HTTP_201_CREATED)
+
+@api_view(["GET"])
+def following_list(request, user_id):
+    
+    user = get_object_or_404(User, id = user_id)
+
+    following = Follow.objects.filter(follower = user)
+
+    serializer = FollowingSerializer(following, many = True)
+    
+    return Response(serializer.data, status=status.HTTP_200_OK)
+    
+@api_view(["GET"])
+def follower_list(request, user_id):
+    
+    user = get_object_or_404(User, id = user_id)
+
+    follower = Follow.objects.filter(following = user)
+
+    serializer = FollowerSerializer(follower, many = True)
+    
+    return Response(serializer.data, status=status.HTTP_200_OK)
+    
