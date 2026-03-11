@@ -7,11 +7,11 @@ from .views import (create_post, update_post, delete_post,
 
 
 urlpatterns = [
-    path("posts/create-post/",create_post),
-    path("posts/post-list/",post_list),
-    path("posts/post-detail/<int:post_id>/",post_detail),
-    path("posts/delete-post/<int:post_id>/",delete_post),
-    path("posts/update-post/<int:post_id>/",update_post),
+    path("create-post/",create_post),
+    path("post-list/",post_list),
+    path("post-detail/<int:post_id>/",post_detail),
+    path("delete-post/<int:post_id>/",delete_post),
+    path("update-post/<int:post_id>/",update_post),
     
     path("posts/<int:post_id>/like/", toggle_like),
     

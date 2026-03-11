@@ -27,7 +27,7 @@ class PostSerializer(serializers.ModelSerializer):
     # comments = CommentSerializer(many=True, read_only=True) # for displaying comments inside post serializer
     class Meta:
         model = Post
-        fields = ['id','username','caption','image','like_count','is_liked','comment_count','created_at','updated_at','comments']
+        fields = ['id','username','caption','image','like_count','is_liked','comment_count','created_at','updated_at']
     
     def get_like_count(self, obj): # So DRF will look for a function named: get_<field_name>
         return obj.likes.count()  # obj is simply the current Post object.
