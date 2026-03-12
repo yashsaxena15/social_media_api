@@ -272,3 +272,26 @@ def global_search(request):
     
     elif search_type != "posts" and search_type != "users": # or just else 
         return Response({"errors": "Invalid search type"}, status= status.HTTP_400_BAD_REQUEST)
+
+
+#-----Feed system-----
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+
+def feed(request):
+    
+    following_users = Follow.objects.filter(follower = request.user)
+    following_users_list = following_users.values_list("following", flat=True) # values_list → returns only ids and flat = True means simple integer [2, 5, 9]
+
+    posts = Post.objects.filter(user__in = following_users_list).order_by('-created_at')
+    # it is getting posts of conataing user id from [2,5,9]
+    # and order by newest first
+    paginator = PageNumberPagination()
+    paginator.page_size = 5
+    result_page = paginator.paginate_queryset(posts, request)
+
+    serializer = PostSerializer(result_page, many = True)
+
+    return paginator.get_paginated_response(serializer.data)

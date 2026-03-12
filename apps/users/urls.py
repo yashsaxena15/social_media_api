@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (profile_list,
                     profile_update,my_profile,register_user,
                     test_user,delete_user,update_user,logout_user,
-                    toggle_follow, following_list, follower_list, global_search)
+                    toggle_follow, following_list, follower_list,
+                    global_search, feed)
 
 
 urlpatterns = [
@@ -20,14 +21,14 @@ urlpatterns = [
 
     # User Section -->
     
-    path("register/", register_user),  # Register user url
+    path("register/", register_user), # Register user url
     path("update-user/", update_user),
     path("logout-user/", logout_user),
     path("delete-user/", delete_user),
     
     # For checking who logged in!
     
-    path("me/", test_user), 
+    path("me/", test_user),
     
     # Follow system --> 
     
@@ -39,4 +40,7 @@ urlpatterns = [
     
     path("search/", global_search),
     
+    # Feed ---->
+    
+    path("feed/", feed),
 ]
