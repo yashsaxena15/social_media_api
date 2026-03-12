@@ -21,7 +21,7 @@ class Profile(models.Model):
 
 
     def __str__(self):
-        return self.full_name
+        return self.full_name 
     
 class Follow(models.Model):
     
@@ -30,7 +30,7 @@ class Follow(models.Model):
     following = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete= models.CASCADE, related_name="followers")
     # this creates a following column in table for saving following' list of the users that are being followed
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["follower", "following"], name = "unique_follow_relationship")

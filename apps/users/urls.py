@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (profile_list,
                     profile_update,my_profile,register_user,
                     test_user,delete_user,update_user,logout_user,
-                    toggle_follow, following_list, follower_list)
+                    toggle_follow, following_list, follower_list, global_search)
 
 
 urlpatterns = [
@@ -34,5 +34,9 @@ urlpatterns = [
     path("follow/<int:user_id>/", toggle_follow),
     path("following-list/<int:user_id>/", following_list),
     path("follower-list/<int:user_id>/", follower_list),
+    
+    # Global search ---->
+    
+    path("search/", global_search),
     
 ]
