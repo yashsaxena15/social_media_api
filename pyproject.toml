@@ -15,7 +15,8 @@ dependencies = [
     "python-decouple (>=3.8,<4.0)",
     "drf-spectacular (>=0.29.0,<0.30.0)",
     "gunicorn (>=25.1.0,<26.0.0)",  # Gunicorn runs Django in production.
-    "whitenoise (>=6.12.0,<7.0.0)"  # poetry add whitenoise
+    "whitenoise (>=6.12.0,<7.0.0)",  # poetry add whitenoise
+    "psycopg2-binary (>=2.9.11,<3.0.0)"
 ]
 
 
