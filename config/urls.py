@@ -21,6 +21,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from apps.users.throttles import CustomTokenObtainPairView
 from django.conf import settings
 from django.conf.urls.static import static
+
 #  What TokenObtainPairView does secretly
 # Internally it:
 # 1️⃣ takes username + password
@@ -28,6 +29,8 @@ from django.conf.urls.static import static
 # 3️⃣ generates JWT token
 # 4️⃣ returns response
 # Now let’s write this ourselves.
+
+from drf_spectacular.views import (SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView)
 
 
 urlpatterns = [
@@ -40,6 +43,18 @@ urlpatterns = [
     path("api/token/refresh/",TokenRefreshView.as_view()), # this view is used to refresh jwt token
 
     path("api/",include("apps.posts.urls")),
+    
+    # Swagger --->
+
+    # API schema
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    
+    # Spectacular UI 
+    path("api/docs/", SpectacularSwaggerView.as_view(url_name = "schema"), name= "swagger-ui" ),
+    
+    # Radoc UI
+    path("api/redoc/", SpectacularRedocView.as_view(url_name = "schema"), name="redoc"),
+
     
 ]
  

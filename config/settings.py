@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     'rest_framework', # to get api view in browser instead of rendering html template
     "rest_framework_simplejwt.token_blacklist", # Enable Token Blacklist App -- used to store blacklisted tokens(access + refresh) that tells jwt to consider these tokens are blacklisted, after that run migrate that create table in db
     "apps.posts",
+    "drf_spectacular",
+    
 ]
 
 MIDDLEWARE = [
@@ -147,7 +149,8 @@ REST_FRAMEWORK = {
     
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE":10,  # Default page size 1 for every view 
-
+    
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema", # This tells DRF to generate OpenAPI schema.
 }
 
 from datetime import timedelta
@@ -160,3 +163,9 @@ SIMPLE_JWT = {
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+SPECTACULAR_SETTINGS = {   # Now Swagger UI shows API info.
+    "TITLE": "Social Media API",
+    "DESCRIPTION": "Backend API for social media platform built with Django REST Framework",
+    "VERSION": "1.0.0",
+}

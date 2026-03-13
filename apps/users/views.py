@@ -12,6 +12,11 @@ from rest_framework.pagination import PageNumberPagination
 from apps.posts.models import Post
 from apps.posts.serializers import PostSerializer
 from django.db.models import Q
+
+# for adding query parameter documentation
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
+
 # Create your views here.
 
 # -------- GET ALL PROFILES --------
@@ -20,10 +25,12 @@ from django.db.models import Q
 @permission_classes([AllowAny]) # Anyone can access 
 def profile_list(request): # request is an object representing the incoming request from the client.
     
-    profiles = Profile.objects.all() # fetching all the objects/ profiles from the model Profile 
+    profiles = Profile.objects.all().select_related("user") # fetching all the objects/ profiles from the model Profile 
+    # select_relted used if relation is onetoone or onetomany 
+    # for many to many prefetch_related()
     paginator = PageNumberPagination() # we have write it manually in FBV to paginate views by creating queryset
-    paginator.page_size = 1
-
+    paginator.page_size = 5
+    paginator.max_page_size = 10
     result_page = paginator.paginate_queryset(profiles, request)
     serializer = ProfileSerializer(instance = result_page,many = True) # many is used to send multiple objects to serializer
     
@@ -86,6 +93,7 @@ def my_profile(request):
 #         return Response(serializer.data)
 #     return Response(serializer.errors,status=400)
 
+@extend_schema(request=ProfileSerializer) 
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 
@@ -123,6 +131,7 @@ def profile_update(request):
 
 # -------- Register User --------
 
+@extend_schema(request=RegisterSerializer) 
 @api_view(["POST"])
 def register_user(request):
     
@@ -136,6 +145,7 @@ def register_user(request):
 
 # -------- Update User --------
     
+@extend_schema(request=RegisterSerializer) 
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def update_user(request):
@@ -213,25 +223,52 @@ def following_list(request, user_id):
     
     user = get_object_or_404(User, id = user_id)
 
-    following = Follow.objects.filter(follower = user)
+    following = Follow.objects.filter(follower = user).select_related("follower")
+    paginator = PageNumberPagination()
+    paginator.page_size = 5
+    paginator.max_page_size = 10 # user can change ?limit=10 in url it prevent this.
+    result_page = paginator.paginate_queryset(following, request)
 
-    serializer = FollowingSerializer(following, many = True)
+    serializer = FollowingSerializer(result_page, many = True)
     
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    return paginator.get_paginated_response(serializer.data)
+
     
 @api_view(["GET"])
 def follower_list(request, user_id):
     
     user = get_object_or_404(User, id = user_id)
 
-    follower = Follow.objects.filter(following = user)
-
-    serializer = FollowerSerializer(follower, many = True)
+    follower = Follow.objects.filter(following = user).select_related("following") 
+    paginator = PageNumberPagination()
+    paginator.page_size = 5
+    paginator.max_page_size = 10 
+    result_page = paginator.paginate_queryset(follower) # it paginates the queryset
+    serializer = FollowerSerializer(result_page, many = True)
     
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    return paginator.get_paginated_response(serializer.data)
 
 
 #-----Global Search----
+
+@extend_schema(   # for displaying param fields in swagger ui
+    parameters=[
+        OpenApiParameter(
+            name = "q",
+            description="Search query",
+            required=True, # query param is required 
+            type=OpenApiTypes.STR,
+        ),
+        OpenApiParameter(
+            name = "type",
+            description="Filter results (users or posts)",
+            required=False,  # applying filter is not mandatory
+            type=OpenApiTypes.STR,
+            enum=["users", "posts"],  # Swagger will show a dropdown selector instead of a free text field.
+        ),
+    ]
+)
+
 
 @api_view(['GET'])
 def global_search(request):
@@ -245,14 +282,19 @@ def global_search(request):
     if not query:
         return Response({"error":"Search query required"}, status=status.HTTP_400_BAD_REQUEST)
     
-    users = User.objects.filter(Q(username__icontains = query) | Q(first_name__icontains = query) | Q(last_name__icontains = query))[0:5] # first 5 users
+    users = (User.objects.filter(Q(username__icontains = query) | Q(first_name__icontains = query) | Q(last_name__icontains = query) ).distinct().only("id", "username", "first_name", "last_name")[0:5]) # distinct() → avoids duplicate, rowsonly() → loads only necessary columns, [:5] → limits results early
     # Q operator used to use OR, AND, NOT logical things to filter queries
     
-    posts = Post.objects.filter(caption__icontains = query)  # filtering posts according to query
+    posts = Post.objects.filter(caption__icontains = query).select_related("user").prefetch_related("likes", "comments").order_by("-created_at")  # filtering posts according to query
 
-    paginator = PageNumberPagination()
-    paginator.page_size = 2
+    # select_related("user") → join user table
+    # prefetch_related("likes", "comments") → fetch related objects efficiently
+    # order_by("-created_at") → newest posts first
+    # This avoids N+1 queries when serializers access:
     
+    paginator = PageNumberPagination()
+    paginator.page_size = 5
+    paginator.max_page_size = 10
     paginated_posts = paginator.paginate_queryset(posts, request)
     
     users_serializer = UserSerializer(instance = users, many=True)
@@ -290,6 +332,7 @@ def feed(request):
     # and order by newest first
     paginator = PageNumberPagination()
     paginator.page_size = 5
+    paginator.max_page_size = 10
     result_page = paginator.paginate_queryset(posts, request)
 
     serializer = PostSerializer(result_page, many = True)

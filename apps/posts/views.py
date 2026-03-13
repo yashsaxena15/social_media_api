@@ -6,8 +6,10 @@ from rest_framework.response import Response
 from .serializers import PostSerializer, CommentSerializer
 from .models import Post, Like, Comment
 from rest_framework.pagination import PageNumberPagination
+from drf_spectacular.utils import extend_schema
 # Create your views here.
 
+@extend_schema(request=PostSerializer)  # for swagger to use Body - JSON 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_post(request):
@@ -24,11 +26,12 @@ def create_post(request):
 @permission_classes([IsAuthenticated])
 def post_list(request):
     
-    post = Post.objects.filter(user=request.user) # get all the posts of currently logged in user
+    post = Post.objects.filter(user=request.user).select_related("user").prefetch_related("likes","comments") # get all the posts of currently logged in user
 
     paginator = PageNumberPagination()
     paginator.page_size = 5
-    
+    paginator.max_page_size = 10
+    # paginator.page_size_query_param = "limit" # by default drf uses page we can set manually also
     result_page = paginator.paginate_queryset(queryset=post, request=request)
     serializer = PostSerializer(instance = result_page, many = True, context = {"request": request}) # for sending request to serializer
     
@@ -48,6 +51,7 @@ def post_detail(request,post_id):
     
     return Response(serializer.data)
 
+@extend_schema(request=PostSerializer) 
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def update_post(request, post_id):
@@ -107,6 +111,7 @@ def toggle_like(request, post_id):
     
 # ------Comment Section------
 
+@extend_schema(request=CommentSerializer) 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 
@@ -130,7 +135,8 @@ def get_comments(request, post_id):
     post = get_object_or_404(Post,id = post_id)
     comments = post.comments.all().order_by("-created_at")
     paginator = PageNumberPagination()
-    paginator.page_size = 1
+    paginator.page_size = 5
+    paginator.max_page_size = 10
 
     result_page = paginator.paginate_queryset(queryset=comments, request=request)
     
@@ -138,6 +144,7 @@ def get_comments(request, post_id):
 
     return paginator.get_paginated_response(serializer.data)
 
+@extend_schema(request=CommentSerializer) 
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 
