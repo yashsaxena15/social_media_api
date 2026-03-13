@@ -13,7 +13,9 @@ dependencies = [
     "pillow (>=12.1.1,<13.0.0)",
     "djangorestframework-simplejwt (>=5.5.1,<6.0.0)",
     "python-decouple (>=3.8,<4.0)",
-    "drf-spectacular (>=0.29.0,<0.30.0)"
+    "drf-spectacular (>=0.29.0,<0.30.0)",
+    "gunicorn (>=25.1.0,<26.0.0)",  # Gunicorn runs Django in production.
+    "whitenoise (>=6.12.0,<7.0.0)"  # poetry add whitenoise
 ]
 
 
