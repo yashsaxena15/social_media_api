@@ -6,6 +6,16 @@ This project demonstrates core backend features such as authentication, posts, l
 
 ---
 
+## Live API
+
+Base URL  
+https://social-media-api-5352.onrender.com
+
+Swagger Documentation  
+https://social-media-api-5352.onrender.com/api/docs/
+
+---
+
 ## Features
 
 - User Registration
