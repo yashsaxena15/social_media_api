@@ -21,6 +21,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from apps.users.throttles import CustomTokenObtainPairView
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
 
 #  What TokenObtainPairView does secretly
 # Internally it:
@@ -32,7 +33,12 @@ from django.conf.urls.static import static
 
 from drf_spectacular.views import (SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView)
 
-
+def home(request):  # for displaying on root url 
+    return JsonResponse({
+        "message": "Social Media API",
+        "docs": "/api/docs/"
+    })
+    
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/",include("apps.users.urls")), # apps.users.urls path to apps urls 
@@ -55,7 +61,7 @@ urlpatterns = [
     # Radoc UI
     path("api/redoc/", SpectacularRedocView.as_view(url_name = "schema"), name="redoc"),
 
-    
+    path("", home)
 ]
  
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)  # for accessing images
