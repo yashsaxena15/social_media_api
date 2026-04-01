@@ -6,6 +6,17 @@ This project demonstrates core backend features such as authentication, posts, l
 
 ---
 
+## Live API
+
+Base URL  
+https://social-media-api-5352.onrender.com
+
+Swagger Documentation  
+https://social-media-api-5352.onrender.com/api/docs/
+
+#### ⚠️ Note: This API is deployed on Render free tier, so the first request may take ~30 seconds due to cold start.
+---
+
 ## Features
 
 - User Registration
@@ -162,7 +173,7 @@ DB_PORT=3306
 - Redis caching
 - Docker support
 - Notifications system
-
+- Realtime messaging using websockets
 ---
 
 ## Author
