@@ -7,88 +7,76 @@ from .serializers import PostSerializer, CommentSerializer
 from .models import Post, Like, Comment
 from rest_framework.pagination import PageNumberPagination
 from drf_spectacular.utils import extend_schema
+from rest_framework.views import APIView
 # Create your views here.
 
-@extend_schema(request=PostSerializer)  # for swagger to use Body - JSON 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def create_post(request):
+class PostListCreateView(APIView):
     
-    serializer = PostSerializer(data = request.data)
-
-    if serializer.is_valid():
-        serializer.save(user=request.user)  # it will bind the created post with logged in user and save in db
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    permission_classes = [IsAuthenticated]
     
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def post_list(request):
-    
-    post = Post.objects.filter(user=request.user).select_related("user").prefetch_related("likes","comments") # get all the posts of currently logged in user
-
-    paginator = PageNumberPagination()
-    paginator.page_size = 5
-    paginator.max_page_size = 10
-    # paginator.page_size_query_param = "limit" # by default drf uses page we can set manually also
-    result_page = paginator.paginate_queryset(queryset=post, request=request)
-    serializer = PostSerializer(instance = result_page, many = True, context = {"request": request}) # for sending request to serializer
-    
-    return paginator.get_paginated_response(serializer.data)
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def post_detail(request,post_id):
-    
-    try:
-        post = Post.objects.get(id = post_id)
+    @extend_schema(request=PostSerializer)
+    def post(self, request):
         
-    except Post.DoesNotExist:
-        return Response({"error":"Post does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = PostSerializer(data = request.data)
 
-    serializer = PostSerializer(instance = post, context = {"request": request})
-    
-    return Response(serializer.data)
-
-@extend_schema(request=PostSerializer) 
-@api_view(["PATCH"])
-@permission_classes([IsAuthenticated])
-def update_post(request, post_id):
-
-    try :
-        post = Post.objects.get(id = post_id)
+        if serializer.is_valid():
+            serializer.save(user=request.user)  # it will bind the created post with logged in user and save in db
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         
-    except Post.DoesNotExist:
-        return Response({"error":"Post does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request):
     
-    if post.user != request.user:  # this insure that user updating his own profile only
-        return Response({"error":"You cannot edit this post!"}, status= status.HTTP_403_FORBIDDEN)
+        posts = Post.objects.filter(user=request.user).select_related("user").prefetch_related("likes","comments").order_by("-created_at") # get all the posts of currently logged in user
 
-    serializer = PostSerializer(instance = post, data = request.data, partial = True) # partial ---> update only provided fields
+        paginator = PageNumberPagination()
+        paginator.page_size = 5
+        paginator.max_page_size = 10
+        # paginator.page_size_query_param = "limit" # by default drf uses page we can set manually also
+        result_page = paginator.paginate_queryset(queryset=posts, request=request)
+        serializer = PostSerializer(instance = result_page, many = True, context = {"request": request}) # for sending request to serializer
+        
+        return paginator.get_paginated_response(serializer.data)
 
-    if serializer.is_valid():
-        serializer.save()
+
+class PostDetailUpdateDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, post_id):
+
+        post = get_object_or_404(Post, id=post_id)
+
+        serializer = PostSerializer(post, context={"request": request})
+
         return Response(serializer.data)
-    
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(["DELETE"])
-@permission_classes([IsAuthenticated])
-def delete_post(request, post_id):
-    
-    try :
-        post = Post.objects.get(id = post_id)
-    
-    except Post.DoesNotExist:
-        return Response({"error":"Post does not found"}, status=status.HTTP_404_NOT_FOUND)
-    
-    if post.user != request.user:  # this insure that user updating his own profile only
-        return Response({"error":"You cannot edit this post!"}, status= status.HTTP_403_FORBIDDEN)
-    
-    post.delete()
+    @extend_schema(request=PostSerializer) 
+    def patch(self, request, post_id):
 
-    return Response({"message":"Post deleted"}, status= status.HTTP_204_NO_CONTENT)
+        post = get_object_or_404(Post, id=post_id)
+        
+        if post.user != request.user:  # this insure that user updating his own profile only
+            return Response({"error":"You cannot edit this post!"}, status= status.HTTP_403_FORBIDDEN)
+
+        serializer = PostSerializer(instance = post, data = request.data, partial = True) # partial ---> update only provided fields
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, post_id):
+        
+        post = get_object_or_404(Post, id=post_id)
+        
+        if post.user != request.user:  # this insure that user updating his own profile only
+            return Response({"error":"You cannot edit this post!"}, status= status.HTTP_403_FORBIDDEN)
+        
+        post.delete()
+
+        return Response({"message":"Post deleted"}, status= status.HTTP_204_NO_CONTENT)
+
 
 # ------Like Toggle ------
 
@@ -111,68 +99,70 @@ def toggle_like(request, post_id):
     
 # ------Comment Section------
 
-@extend_schema(request=CommentSerializer) 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-
-def create_comment(request, post_id):
+class CommentListCreateView(APIView):
     
-    post = get_object_or_404(Post, id = post_id)
+    permission_classes = [IsAuthenticated]
     
-    serializer = CommentSerializer(data= request.data)
+    @extend_schema(request=CommentSerializer) 
+    def post(self, request, post_id):
+        
+        post = get_object_or_404(Post, id = post_id)
+        
+        serializer = CommentSerializer(data= request.data)
+        
+        if serializer.is_valid():
+            serializer.save(user = request.user, post = post)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        
+    def get(self, request, post_id):
     
-    if serializer.is_valid():
-        serializer.save(user = request.user, post = post)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        post = get_object_or_404(Post,id = post_id)
+        comments = post.comments.all().order_by("-created_at")
+        paginator = PageNumberPagination()
+        paginator.page_size = 5
+        paginator.max_page_size = 10
+
+        result_page = paginator.paginate_queryset(queryset=comments, request=request)
+        
+        serializer = CommentSerializer(result_page, many = True)
+
+        return paginator.get_paginated_response(serializer.data)
+        
     
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-
-def get_comments(request, post_id):
+class CommentUpdateDeleteView(APIView):
     
-    post = get_object_or_404(Post,id = post_id)
-    comments = post.comments.all().order_by("-created_at")
-    paginator = PageNumberPagination()
-    paginator.page_size = 5
-    paginator.max_page_size = 10
-
-    result_page = paginator.paginate_queryset(queryset=comments, request=request)
+    permission_classes = [IsAuthenticated]
     
-    serializer = CommentSerializer(result_page, many = True)
+    @extend_schema(request=CommentSerializer) 
+    def patch(self, request, comment_id):
+        
+        comment = get_object_or_404(Comment, id = comment_id)
 
-    return paginator.get_paginated_response(serializer.data)
+        if comment.user != request.user:
+            return Response({"error":"You can't update this comment"}, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = CommentSerializer(comment, data = request.data, partial = True)
 
-@extend_schema(request=CommentSerializer) 
-@api_view(["PATCH"])
-@permission_classes([IsAuthenticated])
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data) # Django by default sends 200 ok status on this
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-def update_comment(request, comment_id):
-    
-    comment = get_object_or_404(Comment, id = comment_id)
+    def delete(self, request, comment_id):
+        
+        comment = get_object_or_404(Comment, id = comment_id )
 
-    if comment.user != request.user:
-        return Response({"error":"You can't update this comment"}, status=status.HTTP_403_FORBIDDEN)
-    
-    serializer = CommentSerializer(comment, data = request.data, partial = True)
+        if comment.user != request.user:
+            return Response({"error":"You can't delete this comment"}, status=status.HTTP_403_FORBIDDEN)
+        
+        comment.delete()
+        return Response({"message":"Comment deleted"}, status=status.HTTP_204_NO_CONTENT)
 
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data) # Django by default sends 201 ok status on this
-    
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(["DELETE"])
-@permission_classes([IsAuthenticated])
-
-def delete_comment(request, comment_id):
-    
-    comment = get_object_or_404(Comment, id = comment_id )
-
-    if comment.user != request.user:
-        return Response({"error":"You can't delete this comment"}, status=status.HTTP_403_FORBIDDEN)
-    
-    comment.delete()
-    return Response({"message":"Comment deleted"}, status=status.HTTP_200_OK)
+        
+        
 
