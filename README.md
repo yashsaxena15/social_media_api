@@ -194,7 +194,9 @@ DB_PORT=3306
 - Redis caching
 - Docker support
 - Notifications system
-- Realtime messaging using websockets
+- Realtime messaging using WebSockets
+- Image optimization
+- Rate limiting per user
 ---
 
 ## Author
