@@ -59,66 +59,87 @@ Deployment:
 
 ### Authentication
 
-- POST /api/register/
-- POST /api/token/
-- POST /api/token/refresh/
-- POST /api/logout-user/
+- POST `/api/token/`
+- POST `/api/token/refresh/`
+- POST `/api/logout-user/`
 
+---
 
-### Profile
+### Users
 
-- GET /api/profile/
-- PATCH /api/profile-update/
+- GET `/api/users/me/`
+- POST `/api/users/me/`
+- PATCH `/api/users/me/`
+- DELETE `/api/users/me/`
 
+---
+
+### Profiles
+
+- GET `/api/profiles/`
+- GET `/api/profile/me/`
+- PATCH `/api/profile/me/`
+
+---
 
 ### Posts
 
-- POST /api/create-post/
-- GET /api/post-list/
-- GET /api/post-detail/{post_id}/
-- PATCH /api/update-post/{post_id}/
-- DELETE /api/delete-post/{post_id}/
+- GET `/api/posts/`
+- POST `/api/posts/`
+- GET `/api/posts/{post_id}/`
+- PATCH `/api/posts/{post_id}/`
+- DELETE `/api/posts/{post_id}/`
 
+---
 
 ### Likes
 
-- POST /api/posts/{post_id}/like/
+- POST `/api/posts/{post_id}/like/`
+
+---
 
 ### Comments
 
+- GET `/api/posts/{post_id}/comments/`
+- POST `/api/posts/{post_id}/comments/`
+- PATCH `/api/posts/{post_id}/comments/{comment_id}/`
+- DELETE `/api/posts/{post_id}/comments/{comment_id}/`
 
-- POST /api/posts/{post_id}/create-comment/
-- GET /api/posts/{post_id}/list-comments/
-- PATCH /api/comments/{comment_id}/update-comment/
-- DELETE /api/comments/{comment_id}/delete-comment/
+---
 
 ### Follow System
 
-- POST /api/follow/{user_id}/
-- GET /api/following-list/{user_id}/
-- GET /api/follower-list/{user_id}/
+- POST `/api/users/{user_id}/follow/`
+- GET `/api/users/{user_id}/following/`
+- GET `/api/users/{user_id}/follower/`
 
+---
 
 ### Feed
 
+- GET `/api/feed/`
 
-- GET /api/feed/
+Returns posts from followed users.
 
+---
 
-### Search
+### Global Search
 
+Search users and posts
 
-- GET /api/search/?q=query
-- GET /api/search/?q=query&type=users
-- GET /api/search/?q=query&type=posts
+- GET `/api/search/?q=query`
+- GET `/api/search/?q=query&type=users`
+- GET `/api/search/?q=query&type=posts`
 
 ---
 
 ## API Documentation
 
-- Swagger UI: /api/docs/
+Swagger UI  
+`/api/docs/`
 
-- ReDoc: /api/redoc/
+ReDoc  
+`/api/redoc/`
 
 ---
 
