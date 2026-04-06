@@ -90,8 +90,8 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     "default": {
-        # "ENGINE": "django.db.backends.mysql",
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django.db.backends.mysql",
+        # "ENGINE": "django.db.backends.postgresql",
         "NAME": config("DB_NAME"),
         "USER": config("DB_USER"),
         "PASSWORD": config("DB_PASSWORD"),
@@ -184,3 +184,16 @@ SPECTACULAR_SETTINGS = {   # Now Swagger UI shows API info.
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
+
+# Redis cloud cache -
+
+CACHES = {   
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://default:qEIzg0Yoik0aoP0CPGXmw3nwHN4A7p2i@redis-16140.c301.ap-south-1-1.ec2.cloud.redislabs.com:16140/0",
+        # this is the credential for redis cloud server
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}

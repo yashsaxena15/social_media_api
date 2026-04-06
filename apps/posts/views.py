@@ -8,6 +8,7 @@ from .models import Post, Like, Comment
 from rest_framework.pagination import PageNumberPagination
 from drf_spectacular.utils import extend_schema
 from rest_framework.views import APIView
+from django.core.cache import cache
 # Create your views here.
 
 class PostListCreateView(APIView):
@@ -15,18 +16,26 @@ class PostListCreateView(APIView):
     permission_classes = [IsAuthenticated]
     
     @extend_schema(request=PostSerializer)
-    def post(self, request):
+    def post(self, request):  # create post
         
         serializer = PostSerializer(data = request.data)
 
         if serializer.is_valid():
             serializer.save(user=request.user)  # it will bind the created post with logged in user and save in db
+            cache.delete_pattern(f"post_list_{request.user.id}_*")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def get(self, request):
-    
+    def get(self, request):  # get all posts of current user
+        
+        page = request.query_params.get("page", 1)
+        cache_key = f"post_list_{request.user.id}_page_{page}"
+        cached_postList = cache.get(cache_key)
+
+        if cached_postList is not None:
+            return Response(cached_postList)
+            
         posts = Post.objects.filter(user=request.user).select_related("user").prefetch_related("likes","comments").order_by("-created_at") # get all the posts of currently logged in user
 
         paginator = PageNumberPagination()
@@ -36,7 +45,10 @@ class PostListCreateView(APIView):
         result_page = paginator.paginate_queryset(queryset=posts, request=request)
         serializer = PostSerializer(instance = result_page, many = True, context = {"request": request}) # for sending request to serializer
         
-        return paginator.get_paginated_response(serializer.data)
+        response =  paginator.get_paginated_response(serializer.data)
+        cache.set(cache_key, response.data, timeout=60)
+
+        return response
 
 
 class PostDetailUpdateDeleteView(APIView):
@@ -44,24 +56,35 @@ class PostDetailUpdateDeleteView(APIView):
 
     def get(self, request, post_id):
 
+        cache_key = f"post_detail_{post_id}"
+        cached_detail = cache.get(cache_key)
+
+        if cached_detail is not None: 
+            return Response(cached_detail)
+
         post = get_object_or_404(Post, id=post_id)
 
         serializer = PostSerializer(post, context={"request": request})
 
-        return Response(serializer.data)
+        response = Response(serializer.data)
+        cache.set(cache_key, response.data, timeout=60)
+
+        return response
 
     @extend_schema(request=PostSerializer) 
     def patch(self, request, post_id):
 
         post = get_object_or_404(Post, id=post_id)
         
-        if post.user != request.user:  # this insure that user updating his own profile only
+        if post.user != request.user:  # Ensure user modifies only their own post
             return Response({"error":"You cannot edit this post!"}, status= status.HTTP_403_FORBIDDEN)
 
-        serializer = PostSerializer(instance = post, data = request.data, partial = True) # partial ---> update only provided fields
+        serializer = PostSerializer(instance = post, data = request.data, partial = True, context = {"request": request}) # partial ---> update only provided fields
 
         if serializer.is_valid():
             serializer.save()
+            cache.delete(f"post_detail_{post_id}")
+            cache.delete_pattern(f"post_list_{request.user.id}_*")
             return Response(serializer.data)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -73,8 +96,10 @@ class PostDetailUpdateDeleteView(APIView):
         if post.user != request.user:  # this insure that user updating his own profile only
             return Response({"error":"You cannot edit this post!"}, status= status.HTTP_403_FORBIDDEN)
         
+        cache.delete(f"post_detail_{post_id}")
+        cache.delete_pattern(f"post_list_{request.user.id}_*")  # this will delete postList cache
         post.delete()
-
+        
         return Response({"message":"Post deleted"}, status= status.HTTP_204_NO_CONTENT)
 
 
@@ -105,20 +130,29 @@ class CommentListCreateView(APIView):
     
     @extend_schema(request=CommentSerializer) 
     def post(self, request, post_id):
-        
+    
         post = get_object_or_404(Post, id = post_id)
         
         serializer = CommentSerializer(data= request.data)
         
         if serializer.is_valid():
             serializer.save(user = request.user, post = post)
+            cache.delete_pattern(f"comment_list_{post_id}_*")  # it will remove all the comment list cache from redis
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         
     def get(self, request, post_id):
-    
+        
+        page = request.query_params.get("page", 1)
+
+        cache_key = f"comment_list_{post_id}_page_{page}"
+
+        cached_comments = cache.get(cache_key)
+        if cached_comments is not None:
+            return Response(cached_comments)
+        
         post = get_object_or_404(Post,id = post_id)
         comments = post.comments.all().order_by("-created_at")
         paginator = PageNumberPagination()
@@ -127,10 +161,11 @@ class CommentListCreateView(APIView):
 
         result_page = paginator.paginate_queryset(queryset=comments, request=request)
         
-        serializer = CommentSerializer(result_page, many = True)
-
-        return paginator.get_paginated_response(serializer.data)
-        
+        serializer = CommentSerializer(result_page, many = True, context={"request": request})
+        response = paginator.get_paginated_response(serializer.data)
+        cache.set(cache_key, response.data, timeout=60)
+       
+        return response
     
 class CommentUpdateDeleteView(APIView):
     
@@ -140,14 +175,15 @@ class CommentUpdateDeleteView(APIView):
     def patch(self, request, comment_id):
         
         comment = get_object_or_404(Comment, id = comment_id)
-
+        post_id = comment.post.id
         if comment.user != request.user:
             return Response({"error":"You can't update this comment"}, status=status.HTTP_403_FORBIDDEN)
         
-        serializer = CommentSerializer(comment, data = request.data, partial = True)
+        serializer = CommentSerializer(comment, data = request.data, partial = True, context = {"request":request})
 
         if serializer.is_valid():
             serializer.save()
+            cache.delete_pattern(f"comment_list_{post_id}_*")
             return Response(serializer.data) # Django by default sends 200 ok status on this
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -155,10 +191,11 @@ class CommentUpdateDeleteView(APIView):
     def delete(self, request, comment_id):
         
         comment = get_object_or_404(Comment, id = comment_id )
-
+        post_id = comment.post.id
         if comment.user != request.user:
             return Response({"error":"You can't delete this comment"}, status=status.HTTP_403_FORBIDDEN)
-        
+
+        cache.delete_pattern(f"comment_list_{post_id}_*")
         comment.delete()
         return Response({"message":"Comment deleted"}, status=status.HTTP_204_NO_CONTENT)
 

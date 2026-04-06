@@ -17,6 +17,8 @@ from django.db.models import Q
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from rest_framework.views import APIView
+
+from django.core.cache import cache
 # Create your views here.
 
 
@@ -27,7 +29,7 @@ class ProfileListView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request): # request is an object representing the incoming request from the client.
-        
+
         profiles = Profile.objects.all().select_related("user") # fetching all the objects/ profiles from the model Profile 
         # select_relted used if relation is onetoone or onetomany 
         # for many to many prefetch_related()
@@ -48,20 +50,30 @@ class ProfileDetailUpdateView(APIView):
     # Get the current user profile
     def get(self, request):
 
+        cache_key = f"profile_detail_{request.user.profile.id}"
+        cached_detail = cache.get(cache_key)
+
+        if cached_detail :
+            return Response(cached_detail)
+
         profile = request.user.profile
         serializer = ProfileSerializer(profile)
 
-        return Response(serializer.data)
+        response = Response(serializer.data)
+        cache.set(cache_key, response.data, timeout=60)
+
+        return response
     
     @extend_schema(request=ProfileSerializer) 
     def patch(self, request):
 
         profile = request.user.profile      # Get the current user profile
-
+        profile_id = profile.id
         serializer = ProfileSerializer(profile, data=request.data, partial=True)
 
         if serializer.is_valid():
             serializer.save()
+            cache.delete(f"profile_detail_{profile_id}")
             return Response(serializer.data)
 
         return Response(serializer.errors, status=400)
@@ -77,7 +89,17 @@ class UserDetailCreateUpdateDeleteView(APIView):
     
     def get(self, request):
 
-        return Response({"user": str(request.user), "username": str(request.user.username), "email": str(request.user.email)})
+        cache_key = f"user_detail_{request.user.id}"
+        cached_detail = cache.get(cache_key)
+
+        if cached_detail :
+            return Response(cached_detail)
+
+        response = Response({"user": str(request.user), "username": str(request.user.username), "email": str(request.user.email)})
+
+        cache.set(cache_key, response.data, timeout=60)
+
+        return response
 
     @extend_schema(request=RegisterSerializer) 
     def post(self, request):
@@ -97,6 +119,7 @@ class UserDetailCreateUpdateDeleteView(APIView):
         
         if serializer.is_valid():
             serializer.save()
+            cache.delete(f"user_detail_{request.user.id}")  # it will delete old cache when user update their profile 
             return Response(serializer.data)
         
         return Response(serializer.errors, status = 400)
@@ -104,8 +127,10 @@ class UserDetailCreateUpdateDeleteView(APIView):
     def delete(self, request):
         
         user = request.user # currently logged-in user
+        user_id = user.id
+        
         user.delete()
-
+        cache.delete(f"user_detail_{user_id}")
         return Response({'message':"User deleted successfully"},status=200)
 
 
@@ -150,6 +175,14 @@ def toggle_follow(request, user_id):
 @api_view(["GET"])
 def following_list(request, user_id):
     
+    page = request.query_params.get("page", 1) # query_param is a parameter that is page and 1 is defualt page
+
+    cache_key = f"user_following_{user_id}_page_{page}"
+    cached_following = cache.get(cache_key)
+
+    if cached_following:
+        return Response(cached_following)
+
     user = get_object_or_404(User, id = user_id)
 
     following = Follow.objects.filter(follower = user).select_related("following")
@@ -160,11 +193,23 @@ def following_list(request, user_id):
 
     serializer = FollowingSerializer(result_page, many = True)
     
-    return paginator.get_paginated_response(serializer.data)
+    response = paginator.get_paginated_response(serializer.data)
+
+    cache.set(cache_key, response.data, timeout=60)
+
+    return response
 
     
 @api_view(["GET"])
 def follower_list(request, user_id):
+    
+    # redis caching applied
+    page = request.query_params.get("page", 1)
+    cache_key = f"user_follower_{user_id}_page_{page}"
+    
+    cached_follower = cache.get(cache_key)
+    if cached_follower:
+        return Response(cached_follower)
     
     user = get_object_or_404(User, id = user_id)
 
@@ -175,7 +220,11 @@ def follower_list(request, user_id):
     result_page = paginator.paginate_queryset(follower, request) # it paginates the queryset
     serializer = FollowerSerializer(result_page, many = True)
     
-    return paginator.get_paginated_response(serializer.data)
+    response = paginator.get_paginated_response(serializer.data)
+    # Save only response.data (Important)
+    cache.set(cache_key, response.data, timeout=60)
+
+    return response
 
 
 #-----Global Search----
@@ -253,6 +302,16 @@ def global_search(request):
 
 def feed(request):
     
+    # cache_key = f"user_feed_{request.user.id}"
+    page = request.query_params.get("page", 1)
+    cache_key = f"user_feed_{request.user.id}_page_{page}"
+    
+    cached_feed = cache.get(cache_key)
+
+    # If cache exists, return cached response
+    if cached_feed is not None:
+        return Response(cached_feed)
+    
     following_users = Follow.objects.filter(follower = request.user)
     following_users_list = following_users.values_list("following", flat=True) # values_list → returns only ids and flat = True means simple integer [2, 5, 9]
 
@@ -264,6 +323,11 @@ def feed(request):
     paginator.max_page_size = 10
     result_page = paginator.paginate_queryset(posts, request)
 
-    serializer = PostSerializer(result_page, many = True)
+    serializer = PostSerializer(result_page, many = True, context = {"request": request})
 
-    return paginator.get_paginated_response(serializer.data)
+    response = paginator.get_paginated_response(serializer.data)
+    
+    # Store in Redis cache for 60 seconds
+    cache.set(cache_key, response.data, timeout=60)
+    
+    return response
