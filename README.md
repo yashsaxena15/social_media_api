@@ -1,8 +1,24 @@
+![Python](https://img.shields.io/badge/Python-3.12-blue)
+![Django](https://img.shields.io/badge/Django-6.0-green)
+![DRF](https://img.shields.io/badge/DRF-API-red)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
 # Social Media API
 
 A backend API for a social media platform built using Django REST Framework.
 
 This project demonstrates core backend features such as authentication, posts, likes, comments, follow system, feed generation, search, pagination, and API documentation.
+
+---
+
+## Highlights
+
+- Production-ready backend architecture
+- JWT authentication system
+- Redis caching implementation
+- Optimized database queries
+- Clean modular architecture
+- Production deployment on cloud VM
 
 ---
 
@@ -15,6 +31,15 @@ Swagger Documentation
 https://social-media-api-5352.onrender.com/api/docs/
 
 #### ⚠️ Note: This API is deployed on Render free tier, so the first request may take ~30 seconds due to cold start.
+
+### Faster API (Oracle Cloud Deployment)
+
+Base URL  
+http://129.154.242.74/
+
+Swagger Documentation  
+http://129.154.242.74/api/docs/#/
+
 ---
 
 ## Features
@@ -45,13 +70,132 @@ Authentication:
 - JWT (SimpleJWT)
 
 Database:
-- MySQL
+- MySQL (Oracle Cloud VM )
+- PostgreSQL (render)
 
 API Documentation:
 - drf-spectacular (Swagger)
 
 Deployment:
 - Render
+- Oracle Cloud VM
+- Nginx
+- Gunicorn
+- Linux (Ubuntu)
+
+---
+
+## Production Deployment
+
+This API is deployed using production-grade architecture:
+
+- Nginx (Reverse Proxy)
+- Gunicorn (WSGI Server)
+- MySQL (Database)
+- Redis (Caching)
+- Oracle Cloud VM (Infrastructure)
+- Linux (Ubuntu Server)
+
+Deployment Architecture:
+
+Client  
+   ↓  
+Nginx (Reverse Proxy)  
+   ↓  
+Gunicorn (WSGI Server)  
+   ↓  
+Django REST Framework  
+   ↓  
+MySQL Database + Redis Cache
+
+--- 
+
+## Database Design
+
+Main Models:
+
+- User
+- Profile
+- Post
+- Like
+- Comment
+- Follow
+
+Relationships:
+
+User → Post (One to Many)  
+Post → Comment (One to Many)  
+User → Follow → User (Self Many-to-Many)
+
+---
+
+## Project Architecture
+
+```
+social_media_api/
+│
+├── apps/
+│   ├── users/
+│   │   ├── authentication
+│   │   ├── profile
+│   │   └── follow
+│   │
+│   └── posts/
+│       ├── posts
+│       ├── likes
+│       └── comments
+│
+├── config/
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+│
+└── manage.py
+```
+---
+## Performance Optimizations
+
+- Redis caching for feed, posts, and comments
+- Database query optimization using `select_related` and `prefetch_related`
+- Pagination for large datasets
+- Efficient cache invalidation strategy
+- Query optimization to avoid N+1 query problem
+
+---
+
+## Screenshots
+
+Swagger API
+
+![Swagger](docs/swagger.png)
+![Swagger](docs/swagger1.png)
+
+---
+
+## Test Users
+
+You can use these test accounts:
+
+Username: jenna67  
+
+Password: password123
+
+Username: angelava 
+
+Password: password123
+
+Or create your own using:
+
+POST /api/token/
+
+---
+## How to Test
+
+1. Login using test user
+2. Create a post
+3. Follow another user
+4. Check feed
+5. Add comments and likes
 
 ---
 
@@ -191,7 +335,6 @@ DB_PORT=3306
 
 ## Future Improvements
 
-- Redis caching
 - Docker support
 - Notifications system
 - Realtime messaging using WebSockets
