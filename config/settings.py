@@ -26,7 +26,7 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config("DEBUG", default=False, cast=bool)
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="*").split(",")
 
 
 # Application definition
@@ -152,11 +152,11 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": "10/minute",   # for anonymous users 
-        "user": "50/minute",   # for authenticated users
+        "user": "20/minute",   # for authenticated users
     },
     
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    "PAGE_SIZE":10,  # Default page size 1 for every view 
+    "PAGE_SIZE":5,  # Default page size 1 for every view 
     
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema", # This tells DRF to generate OpenAPI schema.
 }
@@ -164,8 +164,8 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),  # access token will expire in 30minutes
-    "REFRESH_TOKEN_LIFETIME":timedelta(days=30)    # refresh token will expire in 30 days
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),  # access token will expire in 5 minutes
+    "REFRESH_TOKEN_LIFETIME":timedelta(days=15)    # refresh token will expire in 15 days
     
 }
 

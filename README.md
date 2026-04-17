@@ -188,6 +188,8 @@ Or create your own using:
 
 POST /api/token/
 
+### ⚠️ Note these users only work in production server (Oracle Cloud)
+
 ---
 ## How to Test
 
