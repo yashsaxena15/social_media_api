@@ -30,16 +30,6 @@ https://social-media-api-5352.onrender.com
 Swagger Documentation  
 https://social-media-api-5352.onrender.com/api/docs/
 
-#### ⚠️ Note: This API is deployed on Render free tier, so the first request may take ~30 seconds due to cold start.
-
-### Faster API (Oracle Cloud Deployment)
-
-Base URL  
-http://129.154.242.74/
-
-Swagger Documentation  
-http://129.154.242.74/api/docs/#/
-
 ---
 
 ## Features
