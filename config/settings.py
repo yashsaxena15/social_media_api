@@ -26,8 +26,10 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config("DEBUG", default=False, cast=bool)
 
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="*").split(",")
-
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS",
+    default="social-media-api.backendforge.qd.je"
+).split(",")
 
 # Application definition
 
@@ -187,13 +189,13 @@ X_FRAME_OPTIONS = "DENY"
 
 # Redis cloud cache -
 
-CACHES = {   
+CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://default:qEIzg0Yoik0aoP0CPGXmw3nwHN4A7p2i@redis-16140.c301.ap-south-1-1.ec2.cloud.redislabs.com:16140/0",
-        # this is the credential for redis cloud server
+        "LOCATION": config("REDIS_URL"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "IGNORE_EXCEPTIONS": True,
         }
     }
 }

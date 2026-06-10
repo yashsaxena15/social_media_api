@@ -25,10 +25,11 @@ This project demonstrates core backend features such as authentication, posts, l
 ## Live API
 
 Base URL  
-https://social-media-api-5352.onrender.com
+https://social-media-api.backendforge.qd.je/
 
 Swagger Documentation  
-https://social-media-api-5352.onrender.com/api/docs/
+https://social-media-api.backendforge.qd.je/api/docs/
+
 
 ---
 
@@ -92,6 +93,8 @@ Client
    ↓  
 Nginx (Reverse Proxy)  
    ↓  
+Docker container
+   ↓ 
 Gunicorn (WSGI Server)  
    ↓  
 Django REST Framework  
@@ -177,8 +180,6 @@ Password: password123
 Or create your own using:
 
 POST /api/token/
-
-### ⚠️ Note these users only work in production server (Oracle Cloud)
 
 ---
 ## How to Test

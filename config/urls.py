@@ -40,6 +40,7 @@ def home(request):  # for displaying on root url
     })
     
 urlpatterns = [
+    
     path('admin/', admin.site.urls),
     path("api/",include("apps.users.urls")), # apps.users.urls path to apps urls 
 

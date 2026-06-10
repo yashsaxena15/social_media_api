@@ -1,3 +1,10 @@
+# Git
+.git
+.gitignore
+
+# VS Code
+.vscode
+
 # Python cache
 __pycache__/
 *.pyc
@@ -6,17 +13,6 @@ __pycache__/
 # Virtual environments
 venv/
 .venv/
-
-# VS Code
-.vscode/
-
-# Django
-db.sqlite3
-media/
-staticfiles/
-
-# Local data dumps
-mysql.sql
 
 # Environment variables
 .env
@@ -27,3 +23,10 @@ mysql.sql
 # Runtime files
 *.sock
 *.ctl
+
+# Django generated files
+staticfiles/
+media/
+
+# OS files
+.DS_Store
