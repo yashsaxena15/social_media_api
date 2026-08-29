@@ -35,43 +35,51 @@ https://social-media-api.backendforge.qd.je/api/docs/
 
 ## Features
 
-- User Registration
-- JWT Authentication
+### Backend API
+- User Registration & JWT Authentication
 - User Profile System
 - Create / Update / Delete Posts
-- Like System
-- Comment System
-- Follow / Followers
-- Feed (Posts from followed users)
+- Like & Comment System
+- Follow / Unfollow System
+- Personalized Feed (Posts from followed users)
 - Global Search (users + posts)
 - Pagination
-- API Throttling
-- Swagger API Documentation
+- API Throttling & Swagger API Documentation
+
+### Frontend SPA
+- Clean, modern UI built with Tailwind CSS
+- Persistent JWT Auth Session (via React AuthContext & Axios interceptors with automatic token refresh)
+- Dynamic User Profiles (Dynamic routing `/profile/:username`)
+- Interactive Follow/Unfollow buttons with follower counts updating in real-time
+- Paginated Modals for Followers & Following lists ("Show More" option)
+- Paginated Global Search results for both People and Posts ("Show More" option)
+- Live Comments section on posts (add/delete comments dynamically)
+- Profile customization with image uploads (PFP displays correctly in profile header, posts, and comments)
 
 ---
 
 ## Tech Stack
 
-Backend:
+**Backend:**
 - Python
 - Django
 - Django REST Framework
-
-Authentication:
 - JWT (SimpleJWT)
+- MySQL / PostgreSQL (Render)
+- drf-spectacular (Swagger API Documentation)
 
-Database:
-- MySQL (Oracle Cloud VM )
-- PostgreSQL (render)
+**Frontend:**
+- JavaScript (React + Vite)
+- Tailwind CSS
+- Axios (HTTP client with auth interceptors)
+- Lucide React (Icons)
+- React Router Dom (Routing)
 
-API Documentation:
-- drf-spectacular (Swagger)
-
-Deployment:
+**Infrastructure / Deployment:**
 - Render
 - Oracle Cloud VM
-- Nginx
-- Gunicorn
+- Nginx (Reverse Proxy)
+- Gunicorn (WSGI Server)
 - Linux (Ubuntu)
 
 ---
@@ -281,31 +289,59 @@ ReDoc
 ---
 
 ## Installation
+ 
+ Clone the repository
+ 
+ ```bash
+ git clone https://github.com/yashsaxena15/social-media-api.git
+ cd social-media-api
+ ```
+ 
+ ### Backend Setup
+ 
+ Install dependencies
+ 
+ ```bash
+ poetry install
+ ```
+ 
+ Apply migrations
+ 
+ ```bash
+ poetry run python manage.py migrate
+ ```
+ 
+ Run the development server
+ 
+ ```bash
+ poetry run python manage.py runserver
+ ```
 
-Clone the repository
+ ### Frontend Setup
 
-```bash
-git clone https://github.com/yashsaxena15/social-media-api.git
-cd social-media-api
-```
-
-Install dependencies
-
-```bash
-poetry install
-```
-
-Apply migrations
-
-```bash
-poetry run python manage.py migrate
-```
-
-Run the development server
-
-```bash
-poetry run python manage.py runserver
-```
+ Navigate to the frontend directory
+ 
+ ```bash
+ cd frontend
+ ```
+ 
+ Install dependencies
+ 
+ ```bash
+ npm install
+ ```
+ 
+ Run the React Vite development server
+ 
+ ```bash
+ npm run dev
+ ```
+ 
+ Build for production
+ 
+ ```bash
+ npm run build
+ ```
 
 ---
 
