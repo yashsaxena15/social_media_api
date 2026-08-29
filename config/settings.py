@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     
     # later added fields ---> 
     
@@ -53,6 +54,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     
     "whitenoise.middleware.WhiteNoiseMiddleware",
     
@@ -119,6 +121,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
+    
 ]
 
 
@@ -140,21 +143,23 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Later added fields ---
 
 AUTH_USER_MODEL = "users.User" # tell django we are using custom user
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (      # Global setting for authentication
-        "rest_framework_simplejwt.authentication.JWTAuthentication",  # This tells DRF to Use JWT to identify users.
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "10/minute",   # for anonymous users 
-        "user": "20/minute",   # for authenticated users
+        "anon": "100/minute",   # for anonymous users 
+        "user": "150/minute",   # for authenticated users
     },
     
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
@@ -162,6 +167,13 @@ REST_FRAMEWORK = {
     
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema", # This tells DRF to generate OpenAPI schema.
 }
+
+# React uses a separate local development server, so allow only its local origins.
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS",
+    default="http://localhost:5173,http://127.0.0.1:5173",
+).split(",")
+CORS_URLS_REGEX = r"^/api/.*$"
 
 from datetime import timedelta
 

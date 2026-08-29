@@ -9,6 +9,13 @@ from rest_framework.pagination import PageNumberPagination
 from drf_spectacular.utils import extend_schema
 from rest_framework.views import APIView
 from django.core.cache import cache
+from apps.cache import (
+    CACHE_TIMEOUT,
+    invalidate_comment_list_cache,
+    invalidate_post_caches,
+    post_detail_cache_key,
+)
+from .querysets import with_post_request_state
 # Create your views here.
 
 class PostListCreateView(APIView):
@@ -18,11 +25,11 @@ class PostListCreateView(APIView):
     @extend_schema(request=PostSerializer)
     def post(self, request):  # create post
         
-        serializer = PostSerializer(data = request.data)
+        serializer = PostSerializer(data=request.data, context={"request": request})
 
         if serializer.is_valid():
-            serializer.save(user=request.user)  # it will bind the created post with logged in user and save in db
-            cache.delete_pattern(f"post_list_{request.user.id}_*")
+            post = serializer.save(user=request.user)
+            invalidate_post_caches(post.id, post.user_id)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -36,7 +43,9 @@ class PostListCreateView(APIView):
         if cached_postList is not None:
             return Response(cached_postList)
             
-        posts = Post.objects.filter(user=request.user).select_related("user").prefetch_related("likes","comments").order_by("-created_at") # get all the posts of currently logged in user
+        posts = with_post_request_state(
+            Post.objects.filter(user=request.user).order_by("-created_at"), request.user
+        )
 
         paginator = PageNumberPagination()
         paginator.page_size = 5
@@ -46,7 +55,7 @@ class PostListCreateView(APIView):
         serializer = PostSerializer(instance = result_page, many = True, context = {"request": request}) # for sending request to serializer
         
         response =  paginator.get_paginated_response(serializer.data)
-        cache.set(cache_key, response.data, timeout=60)
+        cache.set(cache_key, response.data, timeout=CACHE_TIMEOUT)
 
         return response
 
@@ -56,18 +65,20 @@ class PostDetailUpdateDeleteView(APIView):
 
     def get(self, request, post_id):
 
-        cache_key = f"post_detail_{post_id}"
+        cache_key = post_detail_cache_key(post_id, request.user.id)
         cached_detail = cache.get(cache_key)
 
         if cached_detail is not None: 
             return Response(cached_detail)
 
-        post = get_object_or_404(Post, id=post_id)
+        post = get_object_or_404(
+            with_post_request_state(Post.objects.all(), request.user), id=post_id
+        )
 
         serializer = PostSerializer(post, context={"request": request})
 
         response = Response(serializer.data)
-        cache.set(cache_key, response.data, timeout=60)
+        cache.set(cache_key, response.data, timeout=CACHE_TIMEOUT)
 
         return response
 
@@ -83,8 +94,7 @@ class PostDetailUpdateDeleteView(APIView):
 
         if serializer.is_valid():
             serializer.save()
-            cache.delete(f"post_detail_{post_id}")
-            cache.delete_pattern(f"post_list_{request.user.id}_*")
+            invalidate_post_caches(post.id, post.user_id)
             return Response(serializer.data)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -96,8 +106,7 @@ class PostDetailUpdateDeleteView(APIView):
         if post.user != request.user:  # this insure that user updating his own profile only
             return Response({"error":"You cannot edit this post!"}, status= status.HTTP_403_FORBIDDEN)
         
-        cache.delete(f"post_detail_{post_id}")
-        cache.delete_pattern(f"post_list_{request.user.id}_*")  # this will delete postList cache
+        invalidate_post_caches(post.id, post.user_id)
         post.delete()
         
         return Response({"message":"Post deleted"}, status= status.HTTP_204_NO_CONTENT)
@@ -117,9 +126,11 @@ def toggle_like(request, post_id):
     
     if like is not None:
         like.delete()
+        invalidate_post_caches(post.id, post.user_id)
         return Response({"message":"Post disliked"}, status=status.HTTP_200_OK)
     else:
         Like.objects.create(user=request.user, post=post)
+        invalidate_post_caches(post.id, post.user_id)
         return Response({"message":"Post liked"}, status=status.HTTP_201_CREATED)
     
 # ------Comment Section------
@@ -137,11 +148,11 @@ class CommentListCreateView(APIView):
         
         if serializer.is_valid():
             serializer.save(user = request.user, post = post)
-            cache.delete_pattern(f"comment_list_{post_id}_*")  # it will remove all the comment list cache from redis
+            invalidate_comment_list_cache(post_id)
+            invalidate_post_caches(post.id, post.user_id)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
         
     def get(self, request, post_id):
         
@@ -153,17 +164,16 @@ class CommentListCreateView(APIView):
         if cached_comments is not None:
             return Response(cached_comments)
         
-        post = get_object_or_404(Post,id = post_id)
-        comments = post.comments.all().order_by("-created_at")
+        post = get_object_or_404(Post, id=post_id)
+        comments = post.comments.select_related("user__profile").order_by("-created_at")
         paginator = PageNumberPagination()
         paginator.page_size = 5
         paginator.max_page_size = 10
 
         result_page = paginator.paginate_queryset(queryset=comments, request=request)
-        
-        serializer = CommentSerializer(result_page, many = True, context={"request": request})
+        serializer = CommentSerializer(result_page, many=True, context={"request": request})
         response = paginator.get_paginated_response(serializer.data)
-        cache.set(cache_key, response.data, timeout=60)
+        cache.set(cache_key, response.data, timeout=CACHE_TIMEOUT)
        
         return response
     
@@ -172,34 +182,39 @@ class CommentUpdateDeleteView(APIView):
     permission_classes = [IsAuthenticated]
     
     @extend_schema(request=CommentSerializer) 
-    def patch(self, request, comment_id):
+    def patch(self, request, post_id=None, comment_id=None):
+        if comment_id is None:
+            comment_id = post_id
+            comment = get_object_or_404(Comment, id=comment_id)
+        else:
+            comment = get_object_or_404(Comment, id=comment_id, post_id=post_id)
         
-        comment = get_object_or_404(Comment, id = comment_id)
-        post_id = comment.post.id
+        target_post_id = comment.post_id
         if comment.user != request.user:
             return Response({"error":"You can't update this comment"}, status=status.HTTP_403_FORBIDDEN)
         
-        serializer = CommentSerializer(comment, data = request.data, partial = True, context = {"request":request})
+        serializer = CommentSerializer(comment, data=request.data, partial=True, context={"request": request})
 
         if serializer.is_valid():
             serializer.save()
-            cache.delete_pattern(f"comment_list_{post_id}_*")
+            invalidate_comment_list_cache(target_post_id)
+            invalidate_post_caches(comment.post_id, comment.post.user_id)
             return Response(serializer.data) # Django by default sends 200 ok status on this
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, comment_id):
-        
-        comment = get_object_or_404(Comment, id = comment_id )
-        post_id = comment.post.id
+    def delete(self, request, post_id=None, comment_id=None):
+        if comment_id is None:
+            comment_id = post_id
+            comment = get_object_or_404(Comment, id=comment_id)
+        else:
+            comment = get_object_or_404(Comment, id=comment_id, post_id=post_id)
+            
+        target_post_id = comment.post_id
         if comment.user != request.user:
             return Response({"error":"You can't delete this comment"}, status=status.HTTP_403_FORBIDDEN)
 
-        cache.delete_pattern(f"comment_list_{post_id}_*")
+        invalidate_comment_list_cache(target_post_id)
+        invalidate_post_caches(comment.post_id, comment.post.user_id)
         comment.delete()
         return Response({"message":"Comment deleted"}, status=status.HTTP_204_NO_CONTENT)
-
-
-        
-        
-

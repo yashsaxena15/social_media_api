@@ -27,3 +27,8 @@ mysql.sql
 # Runtime files
 *.sock
 *.ctl
+# Node / Frontend
+node_modules/
+dist/
+frontend/dist/
+frontend/node_modules/

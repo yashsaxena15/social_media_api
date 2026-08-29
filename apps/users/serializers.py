@@ -2,22 +2,26 @@ from rest_framework import serializers
 from .models import Profile, Follow
 from django.contrib.auth import get_user_model  # Returns the active User model of your project.
 
+from drf_spectacular.utils import extend_schema_field
+
 # serializer works for reading and deserializer works for writing
 class ProfileSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source="user.username",read_only = True)  # for adding username field in my profile view
-    email = serializers.CharField(source = "user.email",read_only = True)
+    username = serializers.CharField(source="user.username", read_only=True)
+    email = serializers.CharField(source="user.email", read_only=True)
+    user_id = serializers.IntegerField(source="user.id", read_only=True)  # needed by frontend for follow API calls
     
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Profile
-        # fields = "__all__"
-        fields = ["username","email","full_name", "bio", "profile_image","followers_count","following_count"]
+        fields = ["user_id", "username", "email", "full_name", "bio", "profile_image", "followers_count", "following_count"]
 
+    @extend_schema_field(serializers.IntegerField())
     def get_followers_count(self, obj):
         return obj.user.followers.count()
     
+    @extend_schema_field(serializers.IntegerField())
     def get_following_count(self, obj):
         return obj.user.following.count()
 

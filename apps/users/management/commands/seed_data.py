@@ -105,5 +105,5 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Comments created"))
 
         self.stdout.write(
-            self.style.SUCCESS("Database seeded successfully 🚀")
+            self.style.SUCCESS("Database seeded successfully")
         )

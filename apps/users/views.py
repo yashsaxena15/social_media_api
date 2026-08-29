@@ -19,8 +19,12 @@ from drf_spectacular.types import OpenApiTypes
 from rest_framework.views import APIView
 
 from django.core.cache import cache
-# Create your views here.
-
+from apps.cache import (
+    CACHE_TIMEOUT,
+    invalidate_follow_caches,
+    profile_detail_cache_key,
+)
+from apps.posts.querysets import with_post_request_state
 
 # -------- GET ALL PROFILES --------
 
@@ -28,18 +32,25 @@ class ProfileListView(APIView):
     
     permission_classes = [AllowAny]
 
-    def get(self, request): # request is an object representing the incoming request from the client.
+    def get(self, request):
+        username = request.query_params.get("username")
+        
+        if username:
+            # Direct lookup by exact username — used by frontend profile pages
+            profile = Profile.objects.filter(user__username=username).select_related("user").first()
+            if not profile:
+                return Response({"detail": "Profile not found."}, status=404)
+            serializer = ProfileSerializer(instance=profile)
+            return Response(serializer.data)
 
-        profiles = Profile.objects.all().select_related("user") # fetching all the objects/ profiles from the model Profile 
-        # select_relted used if relation is onetoone or onetomany 
-        # for many to many prefetch_related()
-        paginator = PageNumberPagination() # we have write it manually in FBV to paginate views by creating queryset
+        profiles = Profile.objects.all().select_related("user")
+        paginator = PageNumberPagination()
         paginator.page_size = 5
         paginator.max_page_size = 10
         result_page = paginator.paginate_queryset(profiles, request)
-        serializer = ProfileSerializer(instance = result_page,many = True) # many is used to send multiple objects to serializer
-        
+        serializer = ProfileSerializer(instance=result_page, many=True)
         return paginator.get_paginated_response(serializer.data)
+
 
 # -------- Detail, Update profile --------
 
@@ -50,17 +61,16 @@ class ProfileDetailUpdateView(APIView):
     # Get the current user profile
     def get(self, request):
 
-        cache_key = f"profile_detail_{request.user.profile.id}"
+        cache_key = profile_detail_cache_key(request.user.id)
         cached_detail = cache.get(cache_key)
-
-        if cached_detail :
+        if cached_detail:
             return Response(cached_detail)
 
         profile = request.user.profile
         serializer = ProfileSerializer(profile)
 
         response = Response(serializer.data)
-        cache.set(cache_key, response.data, timeout=60)
+        cache.set(cache_key, response.data, timeout=CACHE_TIMEOUT)
 
         return response
     
@@ -68,15 +78,15 @@ class ProfileDetailUpdateView(APIView):
     def patch(self, request):
 
         profile = request.user.profile      # Get the current user profile
-        profile_id = profile.id
         serializer = ProfileSerializer(profile, data=request.data, partial=True)
 
         if serializer.is_valid():
             serializer.save()
-            cache.delete(f"profile_detail_{profile_id}")
+            cache.delete(profile_detail_cache_key(request.user.id))
             return Response(serializer.data)
 
         return Response(serializer.errors, status=400)
+
 
 # -------- Detail, Create, Update, Delete User --------
 
@@ -92,37 +102,42 @@ class UserDetailCreateUpdateDeleteView(APIView):
         cache_key = f"user_detail_{request.user.id}"
         cached_detail = cache.get(cache_key)
 
-        if cached_detail :
+        if cached_detail:
             return Response(cached_detail)
 
-        response = Response({"user": str(request.user), "username": str(request.user.username), "email": str(request.user.email)})
+        response = Response({
+            "id": request.user.id,
+            "user": str(request.user),
+            "username": str(request.user.username),
+            "email": str(request.user.email)
+        })
 
-        cache.set(cache_key, response.data, timeout=60)
+        cache.set(cache_key, response.data, timeout=CACHE_TIMEOUT)
 
         return response
 
     @extend_schema(request=RegisterSerializer) 
     def post(self, request):
         
-        serializer = RegisterSerializer(data = request.data)
+        serializer = RegisterSerializer(data=request.data)
 
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data,status=201)
+            return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
     
     @extend_schema(request=UserUpdateSerializer) 
     def patch(self, request):
         
         user = request.user
-        serializer = UserUpdateSerializer(user,data = request.data,partial = True)
+        serializer = UserUpdateSerializer(user, data=request.data, partial=True)
         
         if serializer.is_valid():
             serializer.save()
             cache.delete(f"user_detail_{request.user.id}")  # it will delete old cache when user update their profile 
             return Response(serializer.data)
         
-        return Response(serializer.errors, status = 400)
+        return Response(serializer.errors, status=400)
     
     def delete(self, request):
         
@@ -131,12 +146,11 @@ class UserDetailCreateUpdateDeleteView(APIView):
         
         user.delete()
         cache.delete(f"user_detail_{user_id}")
-        return Response({'message':"User deleted successfully"},status=200)
+        return Response({'message': "User deleted successfully"}, status=200)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-
 def logout_user(request):
     
     try:
@@ -166,9 +180,11 @@ def toggle_follow(request, user_id):
 
     if follow:
         follow.delete()
+        invalidate_follow_caches(request.user.id, user_to_follow.id)
         return Response({"message":"Unfollowed"}, status=status.HTTP_200_OK)
     
     Follow.objects.create(follower = request.user, following = user_to_follow)
+    invalidate_follow_caches(request.user.id, user_to_follow.id)
 
     return Response({"message":"Followed"}, status=status.HTTP_200_OK)
 
@@ -180,7 +196,7 @@ def following_list(request, user_id):
     cache_key = f"user_following_{user_id}_page_{page}"
     cached_following = cache.get(cache_key)
 
-    if cached_following:
+    if cached_following is not None:
         return Response(cached_following)
 
     user = get_object_or_404(User, id = user_id)
@@ -195,7 +211,7 @@ def following_list(request, user_id):
     
     response = paginator.get_paginated_response(serializer.data)
 
-    cache.set(cache_key, response.data, timeout=60)
+    cache.set(cache_key, response.data, timeout=CACHE_TIMEOUT)
 
     return response
 
@@ -208,7 +224,7 @@ def follower_list(request, user_id):
     cache_key = f"user_follower_{user_id}_page_{page}"
     
     cached_follower = cache.get(cache_key)
-    if cached_follower:
+    if cached_follower is not None:
         return Response(cached_follower)
     
     user = get_object_or_404(User, id = user_id)
@@ -222,7 +238,7 @@ def follower_list(request, user_id):
     
     response = paginator.get_paginated_response(serializer.data)
     # Save only response.data (Important)
-    cache.set(cache_key, response.data, timeout=60)
+    cache.set(cache_key, response.data, timeout=CACHE_TIMEOUT)
 
     return response
 
@@ -250,48 +266,49 @@ def follower_list(request, user_id):
 
 @api_view(['GET'])
 def global_search(request):
-    
-    query = request.query_params.get("q")  # coming query from query param 'q
-    search_type = request.query_params.get("type")   # coming query form query param 'type'
+    query = request.query_params.get("q")
+    search_type = request.query_params.get("type")
     if search_type:
-        search_type = search_type.lower() # Also work for type=POSTS, type=Posts, type=posts
-        
-    # if query is None or query == "":  # detailed version
+        search_type = search_type.lower()
+
     if not query:
         return Response({"error":"Search query required"}, status=status.HTTP_400_BAD_REQUEST)
-    
-    users = (User.objects.filter(Q(username__icontains = query) | Q(first_name__icontains = query) | Q(last_name__icontains = query) ).distinct().only("id", "username", "first_name", "last_name").order_by("username")[:5]) # distinct() → avoids duplicate, rowsonly() → loads only necessary columns, [:5] → limits results early
-    # Q operator used to use OR, AND, NOT logical things to filter queries
-    
-    posts = Post.objects.filter(caption__icontains = query).select_related("user").prefetch_related("likes", "comments").order_by("-created_at")  # filtering posts according to query
 
-    # select_related("user") → join user table
-    # prefetch_related("likes", "comments") → fetch related objects efficiently
-    # order_by("-created_at") → newest posts first
-    # This avoids N+1 queries when serializers access:
-    
-    paginator = PageNumberPagination()
-    paginator.page_size = 5
-    paginator.max_page_size = 10
-    paginated_posts = paginator.paginate_queryset(posts, request)
-    
-    users_serializer = UserSerializer(instance = users, many=True)
-    posts_serializer = PostSerializer(instance = paginated_posts, many = True)
-
-    if not search_type:
-        return paginator.get_paginated_response({  # it will send paginated response
-            "users": users_serializer.data,
-            "posts": posts_serializer.data
-        })
-        
-    elif search_type == "posts":
-        return paginator.get_paginated_response({"posts": posts_serializer.data})
-    
-    elif search_type == "users":
-        return paginator.get_paginated_response({"users": users_serializer.data})
-    
-    elif search_type != "posts" and search_type != "users": # or just else 
+    if search_type not in {None, "users", "posts"}:
         return Response({"errors": "Invalid search type"}, status= status.HTTP_400_BAD_REQUEST)
+
+    users = User.objects.filter(
+        Q(username__icontains=query)
+        | Q(first_name__icontains=query)
+        | Q(last_name__icontains=query)
+    ).distinct().only("id", "username", "first_name", "last_name", "email").order_by("username")
+
+    posts = with_post_request_state(
+        Post.objects.filter(caption__icontains=query).order_by("-created_at"), request.user
+    )
+
+    def paginated_data(queryset, serializer_class, context=None):
+        paginator = PageNumberPagination()
+        paginator.page_size = 5
+        paginator.max_page_size = 10
+        page = paginator.paginate_queryset(queryset, request)
+        serializer = serializer_class(page, many=True, context=context or {})
+        return paginator.get_paginated_response(serializer.data).data
+
+    if search_type == "users":
+        return Response(paginated_data(users, UserSerializer))
+
+    if search_type == "posts":
+        return Response(
+            paginated_data(posts, PostSerializer, context={"request": request})
+        )
+
+    return Response(
+        {
+            "users": paginated_data(users, UserSerializer),
+            "posts": paginated_data(posts, PostSerializer, context={"request": request}),
+        }
+    )
 
 
 #-----Feed system-----
@@ -315,7 +332,10 @@ def feed(request):
     following_users = Follow.objects.filter(follower = request.user)
     following_users_list = following_users.values_list("following", flat=True) # values_list → returns only ids and flat = True means simple integer [2, 5, 9]
 
-    posts = Post.objects.filter(user__in = following_users_list).select_related("user").prefetch_related("likes", "comments__user").order_by('-created_at')
+    posts = with_post_request_state(
+        Post.objects.filter(user__in=following_users_list).order_by("-created_at"),
+        request.user,
+    )
     # it is getting posts of conataing user id from [2,5,9]
     # and order by newest first
     paginator = PageNumberPagination()
@@ -328,6 +348,6 @@ def feed(request):
     response = paginator.get_paginated_response(serializer.data)
     
     # Store in Redis cache for 60 seconds
-    cache.set(cache_key, response.data, timeout=60)
+    cache.set(cache_key, response.data, timeout=CACHE_TIMEOUT)
     
     return response
