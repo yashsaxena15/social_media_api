@@ -1,0 +1,80 @@
+name: CI/CD Docker Deployment
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  # -------------------- 1. TEST / VALIDATION --------------------
+  test:
+    name: Run Tests & Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies & Run Django Tests
+        env:
+          DB_ENGINE: "django.db.backends.sqlite3"
+          DEBUG: "True"
+        run: |
+          pip install poetry
+          poetry install
+          poetry run python manage.py test apps
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate Frontend Build
+        run: |
+          cd frontend
+          npm install
+          npm run build
+
+  # -------------------- 2. DEPLOY TO DOCKER ON VM --------------------
+  deploy:
+    name: Deploy to Oracle Cloud VM
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          port: ${{ secrets.VM_PORT }}
+          script: |
+            # 1. Navigate to project directory on the VM
+            cd /home/ubuntu/social_media_api
+
+            # 2. Pull latest code from GitHub
+            git pull origin main
+
+            # 3. Build React Frontend for Nginx
+            cd frontend
+            npm install
+            npm run build
+            cd ..
+
+            # 4. Rebuild and restart the Docker container with --network host
+            docker stop social-media-api || true
+            docker rm social-media-api || true
+            docker build -t social-media-api .
+            docker run -d --name social-media-api --restart always --network host --env-file .env social-media-api
+
+            # 5. Run Django Migrations & Collect Static
+            docker exec social-media-api python manage.py migrate --noinput
+            docker exec social-media-api python manage.py collectstatic --noinput
+
+            # 6. Clean up old unused Docker images
+            docker image prune -f

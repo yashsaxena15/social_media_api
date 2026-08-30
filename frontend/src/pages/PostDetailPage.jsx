@@ -5,6 +5,7 @@ import api from '../api/axiosInstance';
 import { AuthContext } from '../context/AuthContext';
 import CommentForm from '../components/comments/CommentForm';
 import CommentList from '../components/comments/CommentList';
+import { getImageUrl } from '../utils/imageUrl';
 
 const PostDetailPage = () => {
   const { id } = useParams();
@@ -114,12 +115,6 @@ const PostDetailPage = () => {
       </div>
     );
   }
-
-  const getImageUrl = (url) => {
-    if (!url) return null;
-    if (url.startsWith('http')) return url;
-    return `http://127.0.0.1:8000${url.startsWith('/') ? '' : '/'}${url}`;
-  };
 
   return (
     <div>

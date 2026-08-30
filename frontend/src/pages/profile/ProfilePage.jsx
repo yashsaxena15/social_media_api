@@ -6,6 +6,7 @@ import { AuthContext } from '../../context/AuthContext';
 import PostCard from '../../components/posts/PostCard';
 import EditProfileModal from './EditProfileModal';
 import FollowListModal from './FollowListModal';
+import { getImageUrl } from '../../utils/imageUrl';
 
 const ProfilePage = () => {
   const { username } = useParams();
@@ -134,12 +135,6 @@ const ProfilePage = () => {
       </div>
     );
   }
-
-  const getImageUrl = (url) => {
-    if (!url) return null;
-    if (url.startsWith('http')) return url;
-    return `http://127.0.0.1:8000${url.startsWith('/') ? '' : '/'}${url}`;
-  };
 
   return (
     <div>

@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir poetry
 # Copy dependency files first
 # This improves Docker layer caching:
 # dependencies won't reinstall if only source code changes
-COPY pyproject.toml /app/
+COPY pyproject.toml poetry.lock* /app/
 
 # Install Python dependencies
 # virtualenv disabled because container itself is isolated

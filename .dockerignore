@@ -28,5 +28,10 @@ venv/
 staticfiles/
 media/
 
+# Frontend assets (not needed in backend Python container)
+frontend/node_modules/
+frontend/dist/
+.github/
+
 # OS files
 .DS_Store

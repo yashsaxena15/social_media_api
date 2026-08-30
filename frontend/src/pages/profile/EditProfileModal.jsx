@@ -1,14 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { X, Upload } from 'lucide-react';
 import api from '../../api/axiosInstance';
+import { getImageUrl } from '../../utils/imageUrl';
 
 const EditProfileModal = ({ profile, onClose, onUpdated }) => {
-  const getImageUrl = (url) => {
-    if (!url) return null;
-    if (url.startsWith('http')) return url;
-    return `http://127.0.0.1:8000${url.startsWith('/') ? '' : '/'}${url}`;
-  };
-
   const [formData, setFormData] = useState({
     full_name: profile.full_name || '',
     bio: profile.bio || '',

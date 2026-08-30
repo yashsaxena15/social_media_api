@@ -1,6 +1,7 @@
 import React from 'react';
 import { Heart, MessageCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { getImageUrl } from '../../utils/imageUrl';
 
 const PostCard = ({ post, onLikeToggle }) => {
   const { 
@@ -17,12 +18,6 @@ const PostCard = ({ post, onLikeToggle }) => {
   const formatDate = (dateString) => {
     const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
     return new Date(dateString).toLocaleDateString('en-US', options);
-  };
-
-  const getImageUrl = (url) => {
-    if (!url) return null;
-    if (url.startsWith('http')) return url;
-    return `http://127.0.0.1:8000${url.startsWith('/') ? '' : '/'}${url}`;
   };
 
   return (

@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { Trash2 } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
+import { getImageUrl } from '../../utils/imageUrl';
 
 const CommentList = ({ comments, onDelete }) => {
   const { user } = useContext(AuthContext);
@@ -13,12 +14,6 @@ const CommentList = ({ comments, onDelete }) => {
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
-
-  const getImageUrl = (url) => {
-    if (!url) return null;
-    if (url.startsWith('http')) return url;
-    return `http://127.0.0.1:8000${url.startsWith('/') ? '' : '/'}${url}`;
   };
 
   if (!comments || comments.length === 0) {

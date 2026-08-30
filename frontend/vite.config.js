@@ -7,5 +7,9 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true, // Listen on all local IPs
+    proxy: {
+      '/api': 'http://127.0.0.1:8000',
+      '/media': 'http://127.0.0.1:8000',
+    },
   }
 })
