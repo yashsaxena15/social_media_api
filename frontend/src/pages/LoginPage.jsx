@@ -34,7 +34,7 @@ const LoginPage = () => {
               value={formData.username}
               onChange={handleChange}
               required
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-brand-blue"
             />
           </div>
           <div className="mb-6">
@@ -45,18 +45,18 @@ const LoginPage = () => {
               value={formData.password}
               onChange={handleChange}
               required
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-brand-blue"
             />
           </div>
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition"
+            className="w-full bg-gradient-to-r from-brand-purple to-brand-teal text-white p-2 rounded hover:opacity-90 transition"
           >
             Login
           </button>
         </form>
         <p className="mt-4 text-center text-gray-600 text-sm">
-          Don't have an account? <Link to="/register" className="text-blue-500">Register</Link>
+          Don't have an account? <Link to="/register" className="text-brand-blue">Register</Link>
         </p>
       </div>
     </div>

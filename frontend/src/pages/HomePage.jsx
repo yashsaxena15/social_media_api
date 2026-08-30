@@ -65,7 +65,7 @@ const HomePage = () => {
 
       {loading ? (
         <div className="flex justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-blue"></div>
         </div>
       ) : posts.length === 0 ? (
         <div className="text-center p-8 bg-white rounded-lg border border-gray-200">

@@ -46,7 +46,13 @@ const EditProfileModal = ({ profile, onClose, onUpdated }) => {
       onUpdated(res.data);
     } catch (err) {
       console.error('Failed to update profile', err);
-      setError(err.response?.data ? JSON.stringify(err.response.data) : 'Failed to update profile.');
+      if (err.response?.data) {
+        // Extract the first error message from the object (e.g. {"full_name": ["This field may not be blank."]})
+        const errors = Object.values(err.response.data).flat();
+        setError(errors[0] || 'Failed to update profile.');
+      } else {
+        setError('Failed to update profile.');
+      }
     } finally {
       setLoading(false);
     }
@@ -71,14 +77,14 @@ const EditProfileModal = ({ profile, onClose, onUpdated }) => {
             {imagePreview ? (
               <img src={imagePreview} alt="Preview" className="w-20 h-20 rounded-full object-cover border-2 border-gray-200" />
             ) : (
-              <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-3xl">
+              <div className="w-20 h-20 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple font-bold text-3xl">
                 {profile.username?.charAt(0).toUpperCase()}
               </div>
             )}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 text-blue-500 hover:text-blue-600 text-sm font-medium"
+              className="flex items-center gap-2 text-brand-blue hover:text-brand-purple text-sm font-medium"
             >
               <Upload className="w-4 h-4" />
               Change Photo
@@ -100,7 +106,8 @@ const EditProfileModal = ({ profile, onClose, onUpdated }) => {
               name="full_name"
               value={formData.full_name}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500 text-sm"
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand-blue text-sm"
               placeholder="Your full name"
             />
           </div>
@@ -113,7 +120,7 @@ const EditProfileModal = ({ profile, onClose, onUpdated }) => {
               value={formData.bio}
               onChange={handleChange}
               rows={3}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500 text-sm resize-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-brand-blue text-sm resize-none"
               placeholder="Tell people about yourself..."
             />
           </div>
@@ -130,7 +137,7 @@ const EditProfileModal = ({ profile, onClose, onUpdated }) => {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-blue-500 text-white py-2 rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50 transition-colors"
+              className="flex-1 bg-gradient-to-r from-brand-purple to-brand-teal text-white py-2 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-colors"
             >
               {loading ? 'Saving...' : 'Save Changes'}
             </button>

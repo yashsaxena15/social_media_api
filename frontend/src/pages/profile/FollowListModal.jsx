@@ -63,7 +63,7 @@ const FollowListModal = ({ userId, type, onClose }) => {
         <div className="overflow-y-auto flex-1">
           {loading ? (
             <div className="flex justify-center p-6">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-blue"></div>
             </div>
           ) : list.length === 0 ? (
             <div className="text-center p-6 text-gray-500 text-sm">
@@ -80,7 +80,7 @@ const FollowListModal = ({ userId, type, onClose }) => {
                     onClick={onClose}
                     className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
                   >
-                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                    <div className="w-10 h-10 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple font-bold">
                       {username?.charAt(0).toUpperCase()}
                     </div>
                     <span className="font-medium text-gray-900">{username}</span>

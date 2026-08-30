@@ -131,7 +131,7 @@ const SearchPage = () => {
           value={query}
           onChange={handleInputChange}
           placeholder="Search people or posts..."
-          className="w-full bg-white border border-gray-200 rounded-full py-3 pl-12 pr-12 focus:outline-none focus:border-blue-500 shadow-sm"
+          className="w-full bg-white border border-gray-200 rounded-full py-3 pl-12 pr-12 focus:outline-none focus:border-brand-blue shadow-sm"
           autoFocus
         />
         {query && (
@@ -147,7 +147,7 @@ const SearchPage = () => {
       {/* Loading */}
       {loading && (
         <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-blue"></div>
         </div>
       )}
 
@@ -167,7 +167,7 @@ const SearchPage = () => {
                       idx < results.users.length - 1 ? 'border-b border-gray-100' : ''
                     }`}
                   >
-                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                    <div className="w-10 h-10 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple font-bold">
                       {user.username?.charAt(0).toUpperCase()}
                     </div>
                     <div>

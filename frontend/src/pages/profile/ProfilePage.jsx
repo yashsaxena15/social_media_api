@@ -123,7 +123,7 @@ const ProfilePage = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue"></div>
       </div>
     );
   }
@@ -131,7 +131,7 @@ const ProfilePage = () => {
   if (!profile) {
     return (
       <div className="text-center p-8 text-gray-500">
-        User not found. <Link to="/" className="text-blue-500 underline">Go Home</Link>
+        User not found. <Link to="/" className="text-brand-blue underline">Go Home</Link>
       </div>
     );
   }
@@ -150,7 +150,7 @@ const ProfilePage = () => {
                 className="w-24 h-24 rounded-full object-cover border-2 border-gray-200"
               />
             ) : (
-              <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-4xl">
+              <div className="w-24 h-24 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple font-bold text-4xl">
                 {profile.username?.charAt(0).toUpperCase()}
               </div>
             )}
@@ -174,7 +174,7 @@ const ProfilePage = () => {
                   className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     isFollowing
                       ? 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                      : 'bg-gradient-to-r from-brand-purple to-brand-teal text-white hover:opacity-90'
                   }`}
                 >
                   {isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
@@ -188,13 +188,13 @@ const ProfilePage = () => {
               <span className="text-gray-700"><strong>{posts.length}</strong> posts</span>
               <button
                 onClick={() => setFollowModal('followers')}
-                className="text-gray-700 hover:text-blue-500 transition-colors"
+                className="text-gray-700 hover:text-brand-blue transition-colors"
               >
                 <strong>{profile.followers_count}</strong> followers
               </button>
               <button
                 onClick={() => setFollowModal('following')}
-                className="text-gray-700 hover:text-blue-500 transition-colors"
+                className="text-gray-700 hover:text-brand-blue transition-colors"
               >
                 <strong>{profile.following_count}</strong> following
               </button>

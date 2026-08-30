@@ -38,7 +38,7 @@ const CommentList = ({ comments, onDelete }) => {
                 className="w-8 h-8 rounded-full object-cover border border-gray-200"
               />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
+              <div className="w-8 h-8 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple font-bold text-sm">
                 {comment.username ? comment.username.charAt(0).toUpperCase() : '?'}
               </div>
             )}

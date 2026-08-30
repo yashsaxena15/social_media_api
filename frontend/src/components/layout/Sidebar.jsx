@@ -16,7 +16,7 @@ const Sidebar = () => {
     <div className="fixed top-0 left-0 h-screen w-16 md:w-64 bg-white border-r border-gray-200 flex flex-col justify-between py-6">
       <div>
         <div className="px-4 md:px-6 mb-8 hidden md:block">
-          <h1 className="text-2xl font-bold text-blue-600">SocialApi</h1>
+          <h1 className="text-2xl font-black bg-gradient-to-r from-brand-purple via-brand-blue to-brand-green text-transparent bg-clip-text">Aequosia</h1>
         </div>
         <nav className="flex flex-col gap-2 px-2 md:px-4">
           {navItems.map((item) => (
@@ -25,7 +25,7 @@ const Sidebar = () => {
               to={item.path}
               className={({ isActive }) =>
                 `flex items-center gap-4 p-3 rounded-lg transition-colors hover:bg-gray-100 ${
-                  isActive ? 'font-bold text-blue-600' : 'text-gray-700'
+                  isActive ? 'font-bold text-brand-purple' : 'text-gray-700'
                 }`
               }
             >
@@ -48,7 +48,7 @@ const Sidebar = () => {
         </button>
         {user && (
           <div className="mt-4 px-2 hidden md:flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+            <div className="w-8 h-8 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple font-bold">
               {user.username.charAt(0).toUpperCase()}
             </div>
             <span className="text-sm font-medium text-gray-700 truncate">{user.username}</span>

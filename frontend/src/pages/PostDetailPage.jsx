@@ -103,7 +103,7 @@ const PostDetailPage = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue"></div>
       </div>
     );
   }
@@ -111,7 +111,7 @@ const PostDetailPage = () => {
   if (!post) {
     return (
       <div className="text-center p-8 text-gray-500">
-        Post not found. <Link to="/" className="text-blue-500 underline">Go Home</Link>
+        Post not found. <Link to="/" className="text-brand-blue underline">Go Home</Link>
       </div>
     );
   }
@@ -121,7 +121,7 @@ const PostDetailPage = () => {
       {/* Back Button */}
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-gray-600 hover:text-blue-500 mb-6 transition-colors"
+        className="flex items-center gap-2 text-gray-600 hover:text-brand-blue mb-6 transition-colors"
       >
         <ArrowLeft className="w-5 h-5" />
         <span className="font-medium">Back</span>
@@ -139,7 +139,7 @@ const PostDetailPage = () => {
                 className="w-11 h-11 rounded-full object-cover border border-gray-200" 
               />
             ) : (
-              <div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
+              <div className="w-11 h-11 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple font-bold text-lg">
                 {post.username.charAt(0).toUpperCase()}
               </div>
             )}

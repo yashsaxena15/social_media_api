@@ -94,7 +94,7 @@ const CreatePost = ({ onPostCreated }) => {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 text-blue-500 hover:bg-blue-50 px-3 py-2 rounded-lg transition-colors"
+              className="flex items-center gap-2 text-brand-blue hover:bg-brand-purple/5 px-3 py-2 rounded-lg transition-colors"
             >
               <ImagePlus className="w-5 h-5" />
               <span className="font-medium">Photo</span>
@@ -103,7 +103,7 @@ const CreatePost = ({ onPostCreated }) => {
           <button
             type="submit"
             disabled={loading || (!caption.trim() && !image)}
-            className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-2 bg-gradient-to-r from-brand-purple to-brand-teal text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Posting...' : (
               <>

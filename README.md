@@ -1,377 +1,198 @@
-![Python](https://img.shields.io/badge/Python-3.12-blue)
-![Django](https://img.shields.io/badge/Django-6.0-green)
-![DRF](https://img.shields.io/badge/DRF-API-red)
-![License](https://img.shields.io/badge/license-MIT-blue)
+![Python](https://img.shields.io/badge/Python-3.12-blue?style=flat-square&logo=python&logoColor=white)
+![Django](https://img.shields.io/badge/Django-6.0-092E20?style=flat-square&logo=django&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)
+![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=flat-square&logo=vite&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/CI%2FCD-Active-2088FF?style=flat-square&logo=github-actions&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
 
-# Social Media API
+# Aequosia
 
-A backend API for a social media platform built using Django REST Framework.
+A complete, production-ready full-stack open-source social media application. 
 
-This project demonstrates core backend features such as authentication, posts, likes, comments, follow system, feed generation, search, pagination, and API documentation.
-
----
-
-## Highlights
-
-- Production-ready backend architecture
-- JWT authentication system
-- Redis caching implementation
-- Optimized database queries
-- Clean modular architecture
-- Production deployment on cloud VM
+This project combines a **Django REST Framework (DRF)** backend with a modern, lightning-fast **React + Vite** single-page application (SPA). It features full CI/CD automation, persistent Docker containerization, and a secure Nginx reverse proxy architecture.
 
 ---
 
-## Live API
+## 🚀 Live Demo
 
-Base URL  
-https://social-media-api.backendforge.qd.je/
+**Live Web Application:**  
+👉 [https://social-media-api.backendforge.qd.je](https://social-media-api.backendforge.qd.je)
 
-Swagger Documentation  
-https://social-media-api.backendforge.qd.je/api/docs/
-
-
----
-
-## Features
-
-### Backend API
-- User Registration & JWT Authentication
-- User Profile System
-- Create / Update / Delete Posts
-- Like & Comment System
-- Follow / Unfollow System
-- Personalized Feed (Posts from followed users)
-- Global Search (users + posts)
-- Pagination
-- API Throttling & Swagger API Documentation
-
-### Frontend SPA
-- Clean, modern UI built with Tailwind CSS
-- Persistent JWT Auth Session (via React AuthContext & Axios interceptors with automatic token refresh)
-- Dynamic User Profiles (Dynamic routing `/profile/:username`)
-- Interactive Follow/Unfollow buttons with follower counts updating in real-time
-- Paginated Modals for Followers & Following lists ("Show More" option)
-- Paginated Global Search results for both People and Posts ("Show More" option)
-- Live Comments section on posts (add/delete comments dynamically)
-- Profile customization with image uploads (PFP displays correctly in profile header, posts, and comments)
+**Interactive API Documentation (Swagger):**  
+👉 [https://social-media-api.backendforge.qd.je/api/docs/](https://social-media-api.backendforge.qd.je/api/docs/)
 
 ---
 
-## Tech Stack
+## ✨ Features
 
-**Backend:**
-- Python
-- Django
-- Django REST Framework
-- JWT (SimpleJWT)
-- MySQL / PostgreSQL (Render)
-- drf-spectacular (Swagger API Documentation)
+### 💻 Frontend (React SPA)
+- **Modern UI**: Clean, responsive design built entirely with **Tailwind CSS**.
+- **State Management & Auth**: Persistent JWT authentication using React `AuthContext` and Axios interceptors for automatic background token refreshing.
+- **Dynamic Routing**: User profiles are resolved dynamically (e.g., `/profile/:username`).
+- **Interactive Feed & Socials**: 
+  - Like, comment, and delete posts in real-time.
+  - Follow/Unfollow users with immediate UI updates.
+- **Advanced Pagination**: "Load More" functionality implemented for Follower/Following lists and Global Search results to handle massive datasets gracefully.
+- **Media Handling**: Profile picture (PFP) and post image uploads, correctly rendered from the backend API.
 
-**Frontend:**
-- JavaScript (React + Vite)
-- Tailwind CSS
-- Axios (HTTP client with auth interceptors)
-- Lucide React (Icons)
-- React Router Dom (Routing)
+### ⚙️ Backend (Django API)
+- **Robust Authentication**: Secure login/registration via JWT.
+- **Complex Relationships**: Self-referential Many-to-Many models for the Follower system.
+- **Performance Optimized**: 
+  - Redis caching for feed, posts, and comments.
+  - Query optimization using `select_related` and `prefetch_related` to eliminate N+1 query problems.
+- **Throttling & Security**: Granular API rate limiting applied per user and anonymous IPs.
+- **Fully Documented**: Automated OpenAPI schema generation via `drf-spectacular`.
 
-**Infrastructure / Deployment:**
-- Render
-- Oracle Cloud VM
-- Nginx (Reverse Proxy)
-- Gunicorn (WSGI Server)
-- Linux (Ubuntu)
-
----
-
-## Production Deployment
-
-This API is deployed using production-grade architecture:
-
-- Nginx (Reverse Proxy)
-- Gunicorn (WSGI Server)
-- MySQL (Database)
-- Redis (Caching)
-- Oracle Cloud VM (Infrastructure)
-- Linux (Ubuntu Server)
-
-Deployment Architecture:
-
-Client  
-   ↓  
-Nginx (Reverse Proxy)  
-   ↓  
-Docker container
-   ↓ 
-Gunicorn (WSGI Server)  
-   ↓  
-Django REST Framework  
-   ↓  
-MySQL Database + Redis Cache
-
---- 
-
-## Database Design
-
-Main Models:
-
-- User
-- Profile
-- Post
-- Like
-- Comment
-- Follow
-
-Relationships:
-
-User → Post (One to Many)  
-Post → Comment (One to Many)  
-User → Follow → User (Self Many-to-Many)
+### 🏗️ DevOps & Deployment
+- **Dockerized**: Containerized backend for consistent environments.
+- **CI/CD Pipeline**: GitHub Actions automatically runs all 15 test suites, validates the React build, SSHs into the production Oracle VM, rebuilds the Docker container, and runs migrations on every push to `main`.
+- **Zero-Downtime Media**: Persistent Docker volume mounts guarantee uploaded user images are never lost during deployments.
 
 ---
 
-## Project Architecture
+## 🛠️ Tech Stack
 
+### Frontend
+- **React.js 18** + **Vite**
+- **Tailwind CSS**
+- **Axios** (HTTP client with auth interceptors)
+- **Lucide React** (Icons)
+- **React Router Dom**
+
+### Backend
+- **Python 3.12** + **Django 6.0**
+- **Django REST Framework (DRF)**
+- **SimpleJWT** (Authentication)
+- **MySQL** (Primary Database)
+- **Redis** (Caching layer)
+
+### Infrastructure & Deployment
+- **GitHub Actions** (CI/CD)
+- **Docker** (Containerization)
+- **Nginx** (Reverse Proxy & Static File Server)
+- **Gunicorn** (WSGI Application Server)
+- **Oracle Cloud VM** (Ubuntu Linux Hosting)
+
+---
+
+## 🏗️ Architecture
+
+### Production Deployment Flow
+```mermaid
+flowchart TD
+    Client[Browser/User] -->|HTTPS| Nginx[Nginx Reverse Proxy]
+    
+    Nginx -->|Route '/'| React[React Frontend dist/]
+    Nginx -->|Route '/media/'| Media[Persistent Media Vol]
+    Nginx -->|Route '/api/'| Docker[Backend Docker Container]
+    
+    Docker -->|Port 8000| Gunicorn[Gunicorn WSGI]
+    Gunicorn --> Django[Django Application]
+    
+    Django <--> MySQL[(MySQL Database)]
+    Django <--> Redis[(Redis Cache)]
 ```
+
+### CI/CD Pipeline
+1. Push to `main`.
+2. GitHub Actions tests Django backend (SQLite memory) and builds React UI.
+3. SSH into Oracle VM → `git reset --hard` → Pull updates.
+4. Rebuild React `dist/` folder on VM.
+5. Rebuild and deploy Docker image with `--network host` and persistent volume mounts.
+6. Auto-run Django database migrations and static collection.
+
+---
+
+## 📁 Project Structure
+
+```text
 social_media_api/
-│
-├── apps/
-│   ├── users/
-│   │   ├── authentication
-│   │   ├── profile
-│   │   └── follow
-│   │
-│   └── posts/
-│       ├── posts
-│       ├── likes
-│       └── comments
-│
-├── config/
-│   ├── settings.py
-│   ├── urls.py
-│   └── wsgi.py
-│
+├── .github/workflows/       # CI/CD deployment pipeline
+├── apps/                    # Django Backend Applications
+│   ├── users/               # Auth, Profiles, Follow logic
+│   └── posts/               # Feed, Posts, Likes, Comments
+├── config/                  # Django project settings & URLs
+├── frontend/                # React SPA source code
+│   ├── src/
+│   │   ├── api/             # Axios instance & interceptors
+│   │   ├── components/      # Reusable UI components
+│   │   ├── context/         # AuthContext
+│   │   ├── pages/           # Route views
+│   │   └── utils/           # Helper functions (Image parsing)
+│   ├── vite.config.js
+│   └── tailwind.config.js
+├── media/                   # User uploaded files (Git ignored)
+├── Dockerfile               # Backend Docker configuration
+├── pyproject.toml           # Python/Poetry dependencies
 └── manage.py
 ```
----
-## Performance Optimizations
-
-- Redis caching for feed, posts, and comments
-- Database query optimization using `select_related` and `prefetch_related`
-- Pagination for large datasets
-- Efficient cache invalidation strategy
-- Query optimization to avoid N+1 query problem
 
 ---
 
-## Screenshots
+## 🚀 Installation & Local Development
 
-Swagger API
+### 1. Clone the repository
+```bash
+git clone https://github.com/yashsaxena15/social-media-api.git
+cd social-media-api
+```
 
-![Swagger](docs/swagger.png)
-![Swagger](docs/swagger1.png)
-
----
-
-## Test Users
-
-You can use these test accounts:
-
-Username: jenna67  
-
-Password: password123
-
-Username: angelava 
-
-Password: password123
-
-Or create your own using:
-
-POST /api/token/
-
----
-## How to Test
-
-1. Login using test user
-2. Create a post
-3. Follow another user
-4. Check feed
-5. Add comments and likes
-
----
-
-## API Endpoints
-
-### Authentication
-
-- POST `/api/token/`
-- POST `/api/token/refresh/`
-- POST `/api/logout-user/`
-
----
-
-### Users
-
-- GET `/api/users/me/`
-- POST `/api/users/me/`
-- PATCH `/api/users/me/`
-- DELETE `/api/users/me/`
-
----
-
-### Profiles
-
-- GET `/api/profiles/`
-- GET `/api/profile/me/`
-- PATCH `/api/profile/me/`
-
----
-
-### Posts
-
-- GET `/api/posts/`
-- POST `/api/posts/`
-- GET `/api/posts/{post_id}/`
-- PATCH `/api/posts/{post_id}/`
-- DELETE `/api/posts/{post_id}/`
-
----
-
-### Likes
-
-- POST `/api/posts/{post_id}/like/`
-
----
-
-### Comments
-
-- GET `/api/posts/{post_id}/comments/`
-- POST `/api/posts/{post_id}/comments/`
-- PATCH `/api/posts/{post_id}/comments/{comment_id}/`
-- DELETE `/api/posts/{post_id}/comments/{comment_id}/`
-
----
-
-### Follow System
-
-- POST `/api/users/{user_id}/follow/`
-- GET `/api/users/{user_id}/following/`
-- GET `/api/users/{user_id}/follower/`
-
----
-
-### Feed
-
-- GET `/api/feed/`
-
-Returns posts from followed users.
-
----
-
-### Global Search
-
-Search users and posts
-
-- GET `/api/search/?q=query`
-- GET `/api/search/?q=query&type=users`
-- GET `/api/search/?q=query&type=posts`
-
----
-
-## API Documentation
-
-Swagger UI  
-`/api/docs/`
-
-ReDoc  
-`/api/redoc/`
-
----
-
-## Installation
- 
- Clone the repository
- 
- ```bash
- git clone https://github.com/yashsaxena15/social-media-api.git
- cd social-media-api
- ```
- 
- ### Backend Setup
- 
- Install dependencies
- 
- ```bash
- poetry install
- ```
- 
- Apply migrations
- 
- ```bash
- poetry run python manage.py migrate
- ```
- 
- Run the development server
- 
- ```bash
- poetry run python manage.py runserver
- ```
-
- ### Frontend Setup
-
- Navigate to the frontend directory
- 
- ```bash
- cd frontend
- ```
- 
- Install dependencies
- 
- ```bash
- npm install
- ```
- 
- Run the React Vite development server
- 
- ```bash
- npm run dev
- ```
- 
- Build for production
- 
- ```bash
- npm run build
- ```
-
----
-
-## Environment Variables
-
-Create a `.env` file and add:
-
+### 2. Environment Variables
+Create a `.env` file in the root directory:
 ```env
 SECRET_KEY=your_secret_key
 DEBUG=True
-
+DB_ENGINE=django.db.backends.mysql
 DB_NAME=social_media_db
 DB_USER=root
 DB_PASSWORD=yourpassword
-DB_HOST=localhost
+DB_HOST=127.0.0.1
 DB_PORT=3306
+# Optional: REDIS_URL=redis://127.0.0.1:6379/1
+```
+*(If `REDIS_URL` is omitted, the app will gracefully fallback to local memory caching.)*
+
+### 3. Backend Setup
+```bash
+# Install dependencies using Poetry
+poetry install
+
+# Apply migrations
+poetry run python manage.py migrate
+
+# Run the development server
+poetry run python manage.py runserver
 ```
 
+### 4. Frontend Setup
+```bash
+# Open a new terminal tab and enter the frontend folder
+cd frontend
+
+# Install Node dependencies
+npm install
+
+# Start the Vite development server
+npm run dev
+```
+*(Note: `vite.config.js` is already configured with an API proxy, so no CORS issues will occur during local development!)*
+
 ---
 
-## Future Improvements
+## 🧪 Test Users
 
-- Docker support
-- Notifications system
-- Realtime messaging using WebSockets
-- Image optimization
-- Rate limiting per user
+You can immediately test the application using these mock accounts (or register your own):
+
+- **Username**: `jenna67` | **Password**: `password123`
+- **Username**: `angelava` | **Password**: `password123`
+- **Username**: `david51` | **Password**: `password123`
+
 ---
 
-## Author
+## 👨‍💻 Author
 
-Yash Saxena  
+**Yash Saxena**  
 Computer Science Engineer

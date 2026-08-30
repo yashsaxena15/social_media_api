@@ -32,7 +32,7 @@ const PostCard = ({ post, onLikeToggle }) => {
               className="w-10 h-10 rounded-full object-cover border border-gray-200" 
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
+            <div className="w-10 h-10 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple font-bold text-lg">
               {username.charAt(0).toUpperCase()}
             </div>
           )}
@@ -67,7 +67,7 @@ const PostCard = ({ post, onLikeToggle }) => {
           <span className="font-medium">{like_count}</span>
         </button>
 
-        <Link to={`/posts/${id}`} className="flex items-center gap-2 text-gray-500 hover:text-blue-500 group transition-colors">
+        <Link to={`/posts/${id}`} className="flex items-center gap-2 text-gray-500 hover:text-brand-blue group transition-colors">
           <MessageCircle className="w-6 h-6 transition-transform group-hover:scale-110" />
           <span className="font-medium">{comment_count} comments</span>
         </Link>
