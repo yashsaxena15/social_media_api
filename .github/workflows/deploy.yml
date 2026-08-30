@@ -54,23 +54,27 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           port: ${{ secrets.VM_PORT }}
           script: |
+            set -e
+
             # 1. Navigate to exact project directory on the VM
             cd /home/ubuntu/projects/social_media_api
 
-            # 2. Pull latest code from GitHub
-            git pull origin main
+            # 2. Fetch and force pull latest code (discards uncommitted local VM drift)
+            git fetch origin main
+            git reset --hard origin/main
 
-            # 3. Build React Frontend for Nginx
-            cd frontend
-            npm install
-            npm run build
-            cd ..
+            # 3. Build React Frontend for Nginx (isolated subshell)
+            (cd frontend && npm install && npm run build)
 
-            # 4. Rebuild and restart the Docker container with --network host
+            # 4. Rebuild and restart the Docker container with --network host and volume mounts for persistent media
+            mkdir -p media staticfiles
             docker stop social-media-api || true
             docker rm social-media-api || true
             docker build -t social-media-api .
-            docker run -d --name social-media-api --restart always --network host --env-file .env social-media-api
+            docker run -d --name social-media-api --restart always --network host \
+              -v /home/ubuntu/projects/social_media_api/media:/app/media \
+              -v /home/ubuntu/projects/social_media_api/staticfiles:/app/staticfiles \
+              --env-file .env social-media-api
 
             # 5. Run Django Migrations & Collect Static
             docker exec social-media-api python manage.py migrate --noinput
