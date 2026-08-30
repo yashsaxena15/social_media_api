@@ -54,8 +54,8 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           port: ${{ secrets.VM_PORT }}
           script: |
-            # 1. Navigate to project directory on the VM
-            cd /home/ubuntu/social_media_api
+            # 1. Navigate to exact project directory on the VM
+            cd /home/ubuntu/projects/social_media_api
 
             # 2. Pull latest code from GitHub
             git pull origin main
