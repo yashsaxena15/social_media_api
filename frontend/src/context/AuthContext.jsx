@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }) => {
       const userResponse = await api.get('users/me/');
       setUser(userResponse.data);
       
-      navigate('/');
+      navigate('/feed');
       return { success: true };
     } catch (error) {
       console.error('Login error', error);

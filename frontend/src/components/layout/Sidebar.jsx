@@ -7,9 +7,9 @@ const Sidebar = () => {
   const { user, logout } = useContext(AuthContext);
 
   const navItems = [
-    { name: 'Home', path: '/', icon: <Home className="w-6 h-6" /> },
+    { name: 'Home', path: '/feed', icon: <Home className="w-6 h-6" /> },
     { name: 'Search', path: '/search', icon: <Compass className="w-6 h-6" /> },
-    { name: 'Profile', path: user?.username ? `/profile/${user.username}` : '/', icon: <User className="w-6 h-6" /> },
+    { name: 'Profile', path: user?.username ? `/profile/${user.username}` : '/feed', icon: <User className="w-6 h-6" /> },
   ];
 
   return (
