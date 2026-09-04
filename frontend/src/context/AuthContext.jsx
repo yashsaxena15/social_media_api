@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     setUser(null);
-    navigate('/login');
+    navigate('/');
   };
 
   const contextValue = {

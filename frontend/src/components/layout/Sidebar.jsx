@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { Home, Compass, PlusSquare, User, LogOut } from 'lucide-react';
 
@@ -15,8 +15,17 @@ const Sidebar = () => {
   return (
     <div className="fixed top-0 left-0 h-screen w-16 md:w-64 bg-white border-r border-gray-200 flex flex-col justify-between py-6">
       <div>
+        {/* Desktop Brand Logo */}
         <div className="px-4 md:px-6 mb-8 hidden md:block">
-          <h1 className="text-2xl font-black bg-gradient-to-r from-brand-purple via-brand-blue to-brand-green text-transparent bg-clip-text">Aequosia</h1>
+          <Link to="/feed" className="inline-block hover:opacity-90 transition-opacity">
+            <img src="/aequosia-logo-horizontal.png" alt="Aequosia" className="h-12 w-auto object-contain" />
+          </Link>
+        </div>
+        {/* Collapsed/Mobile Brand Icon */}
+        <div className="px-2 mb-8 md:hidden flex justify-center">
+          <Link to="/feed" className="inline-block hover:opacity-90 transition-opacity">
+            <img src="/aequosia-a-icon.png" alt="Aequosia" className="w-10 h-10 rounded-xl shadow-xs object-contain" />
+          </Link>
         </div>
         <nav className="flex flex-col gap-2 px-2 md:px-4">
           {navItems.map((item) => (

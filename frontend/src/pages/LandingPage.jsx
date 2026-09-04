@@ -2,6 +2,18 @@ import React, { useContext, useState, useEffect, useRef } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { Navigate, Link } from 'react-router-dom';
 import { Compass, Home, User, Heart, MessageSquare, Globe, Search, Users, LayoutGrid } from 'lucide-react';
+import AuthDrawer from '../components/AuthDrawer';
+
+// Official GitHub Logo / Mark
+const GithubIcon = ({ className = "w-4 h-4" }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+    />
+  </svg>
+);
 
 // Reusable scroll entrance animation wrapper
 const FadeInSection = ({ children, delay = 0, className = "" }) => {
@@ -42,9 +54,13 @@ const LandingPage = () => {
   const { user, loading } = useContext(AuthContext);
   const [isHeroHovered, setIsHeroHovered] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerMode, setDrawerMode] = useState('login'); // 'login' | 'register'
   const prefersReducedMotion = typeof window !== 'undefined' 
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches 
     : false;
+
+  const openDrawer = (mode) => { setDrawerMode(mode); setDrawerOpen(true); };
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -59,6 +75,10 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 selection:bg-brand-purple/20 relative overflow-hidden">
+
+      {/* Auth Drawer — experiment: right-sliding panel */}
+      <AuthDrawer isOpen={drawerOpen} mode={drawerMode} onClose={() => setDrawerOpen(false)} />
+
       {/* Ambient Background Glows */}
       <div className="absolute top-0 inset-x-0 h-[120vh] overflow-hidden -z-10 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-purple/10 rounded-full blur-[120px] mix-blend-multiply"></div>
@@ -73,25 +93,43 @@ const LandingPage = () => {
           <div className="flex justify-between items-center">
             {/* Branding / Logo */}
             <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="text-2xl font-black bg-gradient-to-r from-brand-purple via-brand-blue to-brand-green text-transparent bg-clip-text hover:opacity-80 transition-opacity">
-                Aequosia
+              <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+                <img src="/aequosia-logo-horizontal.png" alt="Aequosia" className="h-11 sm:h-12 md:h-14 w-auto object-contain" />
               </Link>
             </div>
 
-            {/* Auth Buttons */}
+            {/* Nav and Auth Buttons */}
             <div className="flex items-center space-x-4">
-              <Link
-                to="/login"
+              <a
+                href="https://github.com/yashsaxena15/social_media_api/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-gray-600 hover:text-gray-900 font-medium transition-colors text-sm"
+                aria-label="Aequosia GitHub Repository"
+              >
+                <GithubIcon className="w-5 h-5" />
+                <span className="hidden sm:inline">GitHub</span>
+              </a>
+
+              {/* Divider pipe */}
+              <span className="hidden sm:inline-block text-gray-300 font-light select-none" aria-hidden="true">
+                |
+              </span>
+
+              {/* Log in → opens drawer */}
+              <button
+                onClick={() => openDrawer('login')}
                 className="hidden sm:inline-flex text-gray-600 hover:text-brand-darkblue font-medium transition-colors"
               >
                 Log in
-              </Link>
-              <Link
-                to="/register"
+              </button>
+              {/* Join → opens register drawer */}
+              <button
+                onClick={() => openDrawer('register')}
                 className="inline-flex items-center justify-center px-5 py-2 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-gradient-to-r from-brand-purple to-brand-teal motion-safe:hover:scale-105 hover:opacity-90 transition-all duration-300"
               >
                 Join Aequosia
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -103,6 +141,12 @@ const LandingPage = () => {
         <section className="pt-40 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col items-center min-h-[90vh]">
           {/* Text Content */}
           <FadeInSection delay={0} className="text-center max-w-3xl mx-auto mt-10 md:mt-16">
+            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-xs mb-8 hover:border-gray-300 transition-colors">
+              <img src="/aequosia-a-icon.png" alt="Aequosia" className="w-6 h-6 rounded-lg object-contain shadow-2xs" />
+              <span className="text-xs sm:text-sm font-bold tracking-wider bg-gradient-to-r from-brand-purple via-brand-blue to-brand-green text-transparent bg-clip-text uppercase">
+                People · Ideas · Together
+              </span>
+            </div>
             <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight text-gray-900 mb-6 drop-shadow-sm">
               Social, <span className="bg-gradient-to-r from-brand-purple via-brand-blue to-brand-green text-transparent bg-clip-text">reimagined.</span>
             </h1>
@@ -110,18 +154,20 @@ const LandingPage = () => {
               A clean, fast, and community-driven space to connect with friends, share your moments, and belong. No noise, just your network.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                to="/register"
+              {/* Get Started → opens register drawer */}
+              <button
+                onClick={() => openDrawer('register')}
                 className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 border border-transparent rounded-xl shadow-lg shadow-brand-purple/10 text-lg font-bold text-white bg-gradient-to-r from-brand-purple to-brand-teal motion-safe:hover:scale-105 hover:shadow-brand-purple/20 transition-all duration-300"
               >
                 Get Started for Free
-              </Link>
-              <Link
-                to="/login"
+              </button>
+              {/* Sign In → opens login drawer */}
+              <button
+                onClick={() => openDrawer('login')}
                 className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 border border-gray-200 bg-white/50 backdrop-blur-sm rounded-xl shadow-sm text-lg font-bold text-gray-700 hover:bg-white hover:border-gray-300 transition-colors duration-300"
               >
                 Sign In
-              </Link>
+              </button>
             </div>
           </FadeInSection>
 
@@ -150,7 +196,9 @@ const LandingPage = () => {
               <div className="flex h-[450px] md:h-[600px] bg-gray-50">
                 {/* Mock Sidebar */}
                 <div className="hidden md:flex w-64 bg-white border-r border-gray-200 flex-col py-6 px-4">
-                  <div className="text-xl font-black bg-gradient-to-r from-brand-purple to-brand-green text-transparent bg-clip-text mb-8 px-2">Aequosia</div>
+                  <div className="mb-8 px-2">
+                    <img src="/aequosia-logo-horizontal.png" alt="Aequosia" className="h-7 w-auto object-contain" />
+                  </div>
                   <div className="space-y-3">
                     <div className="flex items-center gap-3 p-3 bg-gray-100 rounded-lg text-brand-purple font-bold">
                       <Home className="w-5 h-5" /> <span>Home</span>
@@ -253,12 +301,26 @@ const LandingPage = () => {
               </FadeInSection>
 
               {/* Feature 3: Discover (Square Card) */}
-              <FadeInSection delay={200} className="bg-gray-50 rounded-3xl p-8 shadow-sm hover:shadow-md border border-gray-200/60 transition-all duration-300 group">
-                <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center mb-6 text-brand-blue">
-                  <Search className="w-6 h-6" />
+              <FadeInSection delay={200} className="bg-gray-50 rounded-3xl p-8 shadow-sm hover:shadow-md border border-gray-200/60 transition-all duration-300 group flex flex-col justify-between">
+                <div>
+                  <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center mb-6 text-brand-blue">
+                    <Search className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Discover</h3>
+                  <p className="text-gray-600">Explore people, ideas, and conversations across Aequosia.</p>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Discover</h3>
-                <p className="text-gray-600">Explore the network and find exactly what you're looking for with built-in global search.</p>
+                <div className="pt-4">
+                  <a
+                    href="https://github.com/yashsaxena15/social_media_api/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-blue hover:text-brand-purple transition-colors group/link"
+                  >
+                    <GithubIcon className="w-3.5 h-3.5" />
+                    <span>View source on GitHub</span>
+                    <span className="transition-transform group-hover/link:translate-x-0.5">→</span>
+                  </a>
+                </div>
               </FadeInSection>
 
               {/* Feature 4: Open Ecosystem (Wide Card) */}
@@ -309,7 +371,9 @@ const LandingPage = () => {
                 <div className="flex h-[600px] bg-gray-50">
                   {/* Left Sidebar Mock */}
                   <div className="w-64 border-r border-gray-200 bg-white p-6 hidden lg:block">
-                     <div className="h-6 w-32 bg-gradient-to-r from-brand-purple to-brand-green rounded mb-10 opacity-80"></div>
+                     <div className="mb-8">
+                       <img src="/aequosia-logo-horizontal.png" alt="Aequosia" className="h-6 w-auto object-contain opacity-90" />
+                     </div>
                      <div className="space-y-4">
                         <div className="flex items-center gap-3">
                           <div className="w-5 h-5 rounded bg-brand-purple/20 flex-shrink-0"></div>
@@ -393,9 +457,12 @@ const LandingPage = () => {
                <div className="relative z-10">
                  <h2 className="text-4xl md:text-5xl font-black text-white mb-6 tracking-tight">Your next connection is waiting.</h2>
                  <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">Join a fast-growing, open community built on transparency and real connections.</p>
-                 <Link to="/register" className="inline-flex items-center justify-center px-10 py-4 rounded-xl text-lg font-bold text-white bg-gradient-to-r from-brand-purple to-brand-teal motion-safe:hover:scale-105 transition-transform duration-300 shadow-xl shadow-brand-purple/20">
+                 <button
+                    onClick={() => openDrawer('register')}
+                    className="inline-flex items-center justify-center px-10 py-4 rounded-xl text-lg font-bold text-white bg-gradient-to-r from-brand-purple to-brand-teal motion-safe:hover:scale-105 transition-transform duration-300 shadow-xl shadow-brand-purple/20"
+                 >
                    Join Aequosia
-                 </Link>
+                 </button>
                </div>
             </FadeInSection>
           </div>
@@ -406,22 +473,44 @@ const LandingPage = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-8">
               <div className="flex flex-col items-center md:items-start gap-2">
-                <div className="text-2xl font-black bg-gradient-to-r from-brand-purple to-brand-teal text-transparent bg-clip-text">
-                  Aequosia
-                </div>
+                <Link to="/" className="hover:opacity-90 transition-opacity">
+                  <img src="/aequosia-logo-horizontal.png" alt="Aequosia" className="h-11 sm:h-12 w-auto object-contain" />
+                </Link>
                 <p className="text-gray-500 text-sm">© {new Date().getFullYear()} Aequosia. Built for connection.</p>
               </div>
               
-              <div className="flex gap-12 text-center md:text-left">
+              <div className="flex flex-wrap gap-8 sm:gap-12 text-center md:text-left justify-center md:justify-start">
                  <div className="flex flex-col gap-3">
                     <span className="font-bold text-gray-900 text-sm tracking-wider uppercase">Product</span>
                     <Link to="/feed" className="text-gray-500 hover:text-brand-purple transition-colors text-sm">Feed</Link>
                     <Link to="/search" className="text-gray-500 hover:text-brand-purple transition-colors text-sm">Discover</Link>
                  </div>
                  <div className="flex flex-col gap-3">
+                    <span className="font-bold text-gray-900 text-sm tracking-wider uppercase">Project</span>
+                    <a
+                      href="https://github.com/yashsaxena15/social_media_api/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-500 hover:text-brand-purple transition-colors text-sm inline-flex items-center justify-center md:justify-start gap-1.5"
+                    >
+                      <GithubIcon className="w-4 h-4" />
+                      <span>GitHub</span>
+                    </a>
+                 </div>
+                 <div className="flex flex-col gap-3">
                     <span className="font-bold text-gray-900 text-sm tracking-wider uppercase">Account</span>
-                    <Link to="/login" className="text-gray-500 hover:text-brand-purple transition-colors text-sm">Log in</Link>
-                    <Link to="/register" className="text-gray-500 hover:text-brand-purple transition-colors text-sm">Register</Link>
+                    <button
+                      onClick={() => openDrawer('login')}
+                      className="text-gray-500 hover:text-brand-purple transition-colors text-sm text-center md:text-left"
+                    >
+                      Log in
+                    </button>
+                    <button
+                      onClick={() => openDrawer('register')}
+                      className="text-gray-500 hover:text-brand-purple transition-colors text-sm text-center md:text-left"
+                    >
+                      Register
+                    </button>
                  </div>
               </div>
             </div>

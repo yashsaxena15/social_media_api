@@ -58,12 +58,12 @@ api.interceptors.response.use(
           // Refresh token is expired or invalid
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
-          window.location.href = '/login'; // Redirect to login
+          window.location.href = '/'; // Redirect to landing page
           return Promise.reject(refreshError);
         }
       } else {
         // No refresh token available
-        window.location.href = '/login';
+        window.location.href = '/';
       }
     }
 
