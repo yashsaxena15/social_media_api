@@ -34,7 +34,7 @@ const CommentForm = ({ postId, onCommentAdded }) => {
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Add a comment..."
-        className="flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:border-brand-blue text-sm"
+        className="flex-1 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 rounded-full px-4 py-2 focus:outline-none focus:border-brand-blue dark:focus:border-brand-teal text-sm transition-colors"
         disabled={loading}
       />
       <button

@@ -83,6 +83,7 @@ class ProfileDetailUpdateView(APIView):
         if serializer.is_valid():
             serializer.save()
             cache.delete(profile_detail_cache_key(request.user.id))
+            cache.delete(f"user_detail_{request.user.id}")
             return Response(serializer.data)
 
         return Response(serializer.errors, status=400)
@@ -105,11 +106,16 @@ class UserDetailCreateUpdateDeleteView(APIView):
         if cached_detail:
             return Response(cached_detail)
 
+        profile_img = None
+        if hasattr(request.user, "profile") and request.user.profile.profile_image:
+            profile_img = request.build_absolute_uri(request.user.profile.profile_image.url)
+
         response = Response({
             "id": request.user.id,
             "user": str(request.user),
             "username": str(request.user.username),
-            "email": str(request.user.email)
+            "email": str(request.user.email),
+            "profile_image": profile_img,
         })
 
         cache.set(cache_key, response.data, timeout=CACHE_TIMEOUT)
@@ -191,8 +197,7 @@ def toggle_follow(request, user_id):
 @api_view(["GET"])
 def following_list(request, user_id):
     
-    page = request.query_params.get("page", 1) # query_param is a parameter that is page and 1 is defualt page
-
+    page = request.query_params.get("page", 1)
     cache_key = f"user_following_{user_id}_page_{page}"
     cached_following = cache.get(cache_key)
 
@@ -201,13 +206,13 @@ def following_list(request, user_id):
 
     user = get_object_or_404(User, id = user_id)
 
-    following = Follow.objects.filter(follower = user).select_related("following")
+    following = Follow.objects.filter(follower = user).select_related("following__profile")
     paginator = PageNumberPagination()
     paginator.page_size = 5
-    paginator.max_page_size = 10 # user can change ?limit=10 in url it prevent this.
+    paginator.max_page_size = 10
     result_page = paginator.paginate_queryset(following, request)
 
-    serializer = FollowingSerializer(result_page, many = True)
+    serializer = FollowingSerializer(result_page, many = True, context={"request": request})
     
     response = paginator.get_paginated_response(serializer.data)
 
@@ -219,7 +224,6 @@ def following_list(request, user_id):
 @api_view(["GET"])
 def follower_list(request, user_id):
     
-    # redis caching applied
     page = request.query_params.get("page", 1)
     cache_key = f"user_follower_{user_id}_page_{page}"
     
@@ -229,15 +233,14 @@ def follower_list(request, user_id):
     
     user = get_object_or_404(User, id = user_id)
 
-    follower = Follow.objects.filter(following = user).select_related("follower") 
+    follower = Follow.objects.filter(following = user).select_related("follower__profile") 
     paginator = PageNumberPagination()
     paginator.page_size = 5
     paginator.max_page_size = 10 
-    result_page = paginator.paginate_queryset(follower, request) # it paginates the queryset
-    serializer = FollowerSerializer(result_page, many = True)
+    result_page = paginator.paginate_queryset(follower, request)
+    serializer = FollowerSerializer(result_page, many = True, context={"request": request})
     
     response = paginator.get_paginated_response(serializer.data)
-    # Save only response.data (Important)
     cache.set(cache_key, response.data, timeout=CACHE_TIMEOUT)
 
     return response
@@ -281,7 +284,7 @@ def global_search(request):
         Q(username__icontains=query)
         | Q(first_name__icontains=query)
         | Q(last_name__icontains=query)
-    ).distinct().only("id", "username", "first_name", "last_name", "email").order_by("username")
+    ).distinct().select_related("profile").order_by("username")
 
     posts = with_post_request_state(
         Post.objects.filter(caption__icontains=query).order_by("-created_at"), request.user
@@ -296,7 +299,7 @@ def global_search(request):
         return paginator.get_paginated_response(serializer.data).data
 
     if search_type == "users":
-        return Response(paginated_data(users, UserSerializer))
+        return Response(paginated_data(users, UserSerializer, context={"request": request}))
 
     if search_type == "posts":
         return Response(
@@ -305,13 +308,10 @@ def global_search(request):
 
     return Response(
         {
-            "users": paginated_data(users, UserSerializer),
+            "users": paginated_data(users, UserSerializer, context={"request": request}),
             "posts": paginated_data(posts, PostSerializer, context={"request": request}),
         }
     )
-
-
-#-----Feed system-----
 
 
 @api_view(['GET'])

@@ -12,10 +12,11 @@ class ProfileSerializer(serializers.ModelSerializer):
     
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
+    posts_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Profile
-        fields = ["user_id", "username", "email", "full_name", "bio", "profile_image", "followers_count", "following_count"]
+        fields = ["user_id", "username", "email", "full_name", "bio", "profile_image", "followers_count", "following_count", "posts_count"]
 
     @extend_schema_field(serializers.IntegerField())
     def get_followers_count(self, obj):
@@ -24,6 +25,10 @@ class ProfileSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.IntegerField())
     def get_following_count(self, obj):
         return obj.user.following.count()
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_posts_count(self, obj):
+        return obj.user.posts.count()
 
 
 User = get_user_model() # → returns YOUR custom User, Give me whichever User model this project uses.
@@ -53,24 +58,55 @@ class FollowSerializer(serializers.ModelSerializer):
         model = Follow
         fields = ["id", "follower","following","created_at"]
 
-class FollowingSerializer(serializers.ModelSerializer): # we have created two serializer for displaying following and follower users
-    
-    following = serializers.CharField(source = "following.username", read_only = True) # this following.username comes from models following field that has relationship with user model that has username field
+class FollowingSerializer(serializers.ModelSerializer):
+    following = serializers.CharField(source="following.username", read_only=True)
+    profile_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Follow
-        fields = ["id", "following", "created_at"]
+        fields = ["id", "following", "profile_image", "created_at"]
+
+    @extend_schema_field(serializers.ImageField(allow_null=True))
+    def get_profile_image(self, obj):
+        profile = getattr(obj.following, "profile", None)
+        if profile and profile.profile_image:
+            request = self.context.get("request")
+            if request is not None:
+                return request.build_absolute_uri(profile.profile_image.url)
+            return profile.profile_image.url
+        return None
 
 class FollowerSerializer(serializers.ModelSerializer):
-    
-    follower = serializers.CharField(source = "follower.username", read_only = True)
+    follower = serializers.CharField(source="follower.username", read_only=True)
+    profile_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Follow
-        fields = ["id", "follower", "created_at"]
+        fields = ["id", "follower", "profile_image", "created_at"]
+
+    @extend_schema_field(serializers.ImageField(allow_null=True))
+    def get_profile_image(self, obj):
+        profile = getattr(obj.follower, "profile", None)
+        if profile and profile.profile_image:
+            request = self.context.get("request")
+            if request is not None:
+                return request.build_absolute_uri(profile.profile_image.url)
+            return profile.profile_image.url
+        return None
         
 class UserSerializer(serializers.ModelSerializer):
+    profile_image = serializers.SerializerMethodField()
     
     class Meta:
         model = User
-        fields = ["username","first_name","last_name","email"]
+        fields = ["id", "username", "first_name", "last_name", "email", "profile_image"]
+
+    @extend_schema_field(serializers.ImageField(allow_null=True))
+    def get_profile_image(self, obj):
+        profile = getattr(obj, "profile", None)
+        if profile and profile.profile_image:
+            request = self.context.get("request")
+            if request is not None:
+                return request.build_absolute_uri(profile.profile_image.url)
+            return profile.profile_image.url
+        return None

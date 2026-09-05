@@ -82,12 +82,25 @@ export const AuthProvider = ({ children }) => {
     navigate('/');
   };
 
+  const refreshUser = async () => {
+    try {
+      const response = await api.get('users/me/');
+      setUser(response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Failed to refresh user data", error);
+      return null;
+    }
+  };
+
   const contextValue = {
     user,
+    setUser,
     loading,
     login,
     register,
-    logout
+    logout,
+    refreshUser
   };
 
   return (

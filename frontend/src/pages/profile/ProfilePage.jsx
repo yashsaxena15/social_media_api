@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { UserCheck, UserPlus, Grid } from 'lucide-react';
+import { UserCheck, UserPlus, Grid, PlusSquare } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import { AuthContext } from '../../context/AuthContext';
 import PostCard from '../../components/posts/PostCard';
+import CreatePost from '../../components/posts/CreatePost';
 import EditProfileModal from './EditProfileModal';
 import FollowListModal from './FollowListModal';
 import { getImageUrl } from '../../utils/imageUrl';
@@ -20,6 +21,7 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
   const [followModal, setFollowModal] = useState(null); // 'followers' | 'following' | null
+  const [showCreatePost, setShowCreatePost] = useState(false);
 
   // Fetch profile by exact username using our new ?username= filter
   const fetchProfile = async () => {
@@ -139,7 +141,7 @@ const ProfilePage = () => {
   return (
     <div>
       {/* Profile Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 p-6 mb-6 transition-colors">
         <div className="flex items-start gap-6">
           {/* Avatar */}
           <div className="flex-shrink-0">
@@ -147,10 +149,10 @@ const ProfilePage = () => {
               <img
                 src={getImageUrl(profile.profile_image)}
                 alt={`${profile.username}'s avatar`}
-                className="w-24 h-24 rounded-full object-cover border-2 border-gray-200"
+                className="w-24 h-24 rounded-full object-cover border-2 border-gray-200 dark:border-slate-700"
               />
             ) : (
-              <div className="w-24 h-24 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple font-bold text-4xl">
+              <div className="w-24 h-24 rounded-full bg-brand-purple/10 dark:bg-brand-purple/20 flex items-center justify-center text-brand-purple dark:text-brand-teal font-bold text-4xl">
                 {profile.username?.charAt(0).toUpperCase()}
               </div>
             )}
@@ -159,12 +161,12 @@ const ProfilePage = () => {
           {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-4 mb-3 flex-wrap">
-              <h2 className="text-2xl font-bold text-gray-900">{profile.username}</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{profile.username}</h2>
 
               {isOwnProfile ? (
                 <button
                   onClick={() => setShowEditModal(true)}
-                  className="px-4 py-1.5 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                  className="px-4 py-1.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
                 >
                   Edit Profile
                 </button>
@@ -173,7 +175,7 @@ const ProfilePage = () => {
                   onClick={handleFollowToggle}
                   className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     isFollowing
-                      ? 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      ? 'border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
                       : 'bg-gradient-to-r from-brand-purple to-brand-teal text-white hover:opacity-90'
                   }`}
                 >
@@ -185,36 +187,61 @@ const ProfilePage = () => {
 
             {/* Stats */}
             <div className="flex gap-6 mb-3">
-              <span className="text-gray-700"><strong>{posts.length}</strong> posts</span>
+              <span className="text-gray-700 dark:text-slate-300"><strong>{posts.length}</strong> posts</span>
               <button
                 onClick={() => setFollowModal('followers')}
-                className="text-gray-700 hover:text-brand-blue transition-colors"
+                className="text-gray-700 dark:text-slate-300 hover:text-brand-blue dark:hover:text-brand-teal transition-colors"
               >
                 <strong>{profile.followers_count}</strong> followers
               </button>
               <button
                 onClick={() => setFollowModal('following')}
-                className="text-gray-700 hover:text-brand-blue transition-colors"
+                className="text-gray-700 dark:text-slate-300 hover:text-brand-blue dark:hover:text-brand-teal transition-colors"
               >
                 <strong>{profile.following_count}</strong> following
               </button>
             </div>
 
             {/* Bio */}
-            {profile.full_name && <p className="font-semibold text-gray-900">{profile.full_name}</p>}
-            {profile.bio && <p className="text-gray-600 mt-1 whitespace-pre-wrap">{profile.bio}</p>}
+            {profile.full_name && <p className="font-semibold text-gray-900 dark:text-slate-100">{profile.full_name}</p>}
+            {profile.bio && <p className="text-gray-600 dark:text-slate-400 mt-1 whitespace-pre-wrap">{profile.bio}</p>}
           </div>
         </div>
       </div>
 
       {/* Posts Section */}
-      <div className="flex items-center gap-2 mb-4 text-gray-600 font-medium border-t border-gray-200 pt-4">
-        <Grid className="w-4 h-4" />
-        <span>Posts</span>
+      <div className="flex items-center justify-between mb-4 border-t border-gray-200 dark:border-slate-800 pt-4">
+        <div className="flex items-center gap-2 text-gray-600 dark:text-slate-400 font-medium">
+          <Grid className="w-4 h-4" />
+          <span>Posts</span>
+        </div>
+        {isOwnProfile && (
+          <button
+            onClick={() => setShowCreatePost(prev => !prev)}
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              showCreatePost
+                ? 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
+                : 'bg-gradient-to-r from-brand-purple to-brand-teal text-white hover:opacity-90'
+            }`}
+          >
+            <PlusSquare className="w-4 h-4" />
+            {showCreatePost ? 'Cancel' : 'New Post'}
+          </button>
+        )}
       </div>
 
+      {/* Create Post Form (collapsible) */}
+      {isOwnProfile && showCreatePost && (
+        <CreatePost
+          onPostCreated={(newPost) => {
+            setPosts(prev => [newPost, ...prev]);
+            setShowCreatePost(false);
+          }}
+        />
+      )}
+
       {posts.length === 0 ? (
-        <div className="text-center p-8 bg-white rounded-lg border border-gray-200 text-gray-500">
+        <div className="text-center p-8 bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-800 text-gray-500 dark:text-slate-400">
           No posts yet.
         </div>
       ) : (

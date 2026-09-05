@@ -1,10 +1,11 @@
 import React, { useContext } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import { Home, Compass, PlusSquare, User, LogOut } from 'lucide-react';
+import { Home, Compass, PlusSquare, User, Settings } from 'lucide-react';
+import { getImageUrl } from '../../utils/imageUrl';
 
 const Sidebar = () => {
-  const { user, logout } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
 
   const navItems = [
     { name: 'Home', path: '/feed', icon: <Home className="w-6 h-6" /> },
@@ -13,12 +14,14 @@ const Sidebar = () => {
   ];
 
   return (
-    <div className="fixed top-0 left-0 h-screen w-16 md:w-64 bg-white border-r border-gray-200 flex flex-col justify-between py-6">
+    <div className="fixed top-0 left-0 h-screen w-16 md:w-64 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 flex flex-col justify-between py-6 transition-colors duration-200">
       <div>
         {/* Desktop Brand Logo */}
         <div className="px-4 md:px-6 mb-8 hidden md:block">
           <Link to="/feed" className="inline-block hover:opacity-90 transition-opacity">
-            <img src="/aequosia-logo-horizontal.png" alt="Aequosia" className="h-12 w-auto object-contain" />
+            <span className="inline-flex items-center dark:bg-white/10 dark:rounded-lg dark:px-2 dark:py-0.5">
+              <img src="/aequosia-logo-horizontal.png" alt="Aequosia" className="h-12 w-auto object-contain" />
+            </span>
           </Link>
         </div>
         {/* Collapsed/Mobile Brand Icon */}
@@ -33,8 +36,10 @@ const Sidebar = () => {
               key={item.name}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center gap-4 p-3 rounded-lg transition-colors hover:bg-gray-100 ${
-                  isActive ? 'font-bold text-brand-purple' : 'text-gray-700'
+                `flex items-center gap-4 p-3 rounded-lg transition-colors ${
+                  isActive
+                    ? 'font-bold text-brand-purple dark:text-brand-teal bg-brand-purple/5 dark:bg-brand-teal/10'
+                    : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'
                 }`
               }
             >
@@ -42,26 +47,45 @@ const Sidebar = () => {
               <span className="hidden md:block text-lg">{item.name}</span>
             </NavLink>
           ))}
-          {/* Create Post Action (could open a modal, but we'll manage it on the page for now or navigate) */}
-          {/* We will just place the Create Post block on the Home Feed itself in Phase 3 */}
         </nav>
       </div>
 
       <div className="px-2 md:px-4">
-        <button
-          onClick={logout}
-          className="flex items-center gap-4 p-3 w-full rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+        {/* Settings button placed where logout previously was */}
+        <NavLink
+          to="/settings"
+          className={({ isActive }) =>
+            `flex items-center gap-4 p-3 rounded-lg transition-colors ${
+              isActive
+                ? 'font-bold text-brand-purple dark:text-brand-teal bg-brand-purple/5 dark:bg-brand-teal/10'
+                : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'
+            }`
+          }
         >
-          <LogOut className="w-6 h-6" />
-          <span className="hidden md:block text-lg font-medium">Logout</span>
-        </button>
+          <Settings className="w-6 h-6" />
+          <span className="hidden md:block text-lg">Settings</span>
+        </NavLink>
         {user && (
-          <div className="mt-4 px-2 hidden md:flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple font-bold">
-              {user.username.charAt(0).toUpperCase()}
-            </div>
-            <span className="text-sm font-medium text-gray-700 truncate">{user.username}</span>
-          </div>
+          <Link
+            to={`/profile/${user.username}`}
+            className="mt-4 px-2 flex items-center justify-center md:justify-start gap-2.5 hover:opacity-80 transition-opacity"
+            title={`View profile (@${user.username})`}
+          >
+            {user.profile_image ? (
+              <img
+                src={getImageUrl(user.profile_image)}
+                alt={`${user.username}'s avatar`}
+                className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-slate-700 flex-shrink-0"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-brand-purple/10 dark:bg-brand-purple/20 flex items-center justify-center text-brand-purple dark:text-brand-teal font-bold text-sm flex-shrink-0">
+                {user.username.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <span className="hidden md:block text-sm font-medium text-gray-700 dark:text-slate-300 truncate">
+              {user.username}
+            </span>
+          </Link>
         )}
       </div>
     </div>

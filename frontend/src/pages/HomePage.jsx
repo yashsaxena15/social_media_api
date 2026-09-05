@@ -59,7 +59,7 @@ const HomePage = () => {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4 text-gray-800">Home Feed</h2>
+      <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-slate-100">Home Feed</h2>
       
       <CreatePost onPostCreated={handlePostCreated} />
 
@@ -68,8 +68,8 @@ const HomePage = () => {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-blue"></div>
         </div>
       ) : posts.length === 0 ? (
-        <div className="text-center p-8 bg-white rounded-lg border border-gray-200">
-          <p className="text-gray-500">No posts yet. Be the first to share something!</p>
+        <div className="text-center p-8 bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-800">
+          <p className="text-gray-500 dark:text-slate-400">No posts yet. Be the first to share something!</p>
         </div>
       ) : (
         <div>

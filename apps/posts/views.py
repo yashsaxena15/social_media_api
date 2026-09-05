@@ -1,12 +1,14 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.decorators import api_view,permission_classes
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .serializers import PostSerializer, CommentSerializer
 from .models import Post, Like, Comment
 from rest_framework.pagination import PageNumberPagination
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
+from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from django.core.cache import cache
 from apps.cache import (
@@ -16,10 +18,11 @@ from apps.cache import (
     post_detail_cache_key,
 )
 from .querysets import with_post_request_state
-# Create your views here.
+
+User = get_user_model()
+
 
 class PostListCreateView(APIView):
-    
     permission_classes = [IsAuthenticated]
     
     @extend_schema(request=PostSerializer)
@@ -34,27 +37,48 @@ class PostListCreateView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def get(self, request):  # get all posts of current user
-        
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name="page", description="Page number", required=False, type=OpenApiTypes.INT),
+            OpenApiParameter(name="username", description="Filter posts by author username", required=False, type=OpenApiTypes.STR),
+            OpenApiParameter(name="user_id", description="Filter posts by author user ID", required=False, type=OpenApiTypes.INT),
+        ]
+    )
+    def get(self, request):
         page = request.query_params.get("page", 1)
-        cache_key = f"post_list_{request.user.id}_page_{page}"
-        cached_postList = cache.get(cache_key)
+        username = request.query_params.get("username")
+        user_id = request.query_params.get("user_id")
 
+        if username:
+            target_user = get_object_or_404(User, username=username)
+        elif user_id:
+            target_user = get_object_or_404(User, id=user_id)
+        else:
+            target_user = None
+
+        if target_user:
+            if target_user == request.user:
+                cache_key = f"post_list_{target_user.id}_page_{page}"
+            else:
+                cache_key = f"post_list_{target_user.id}_viewer_{request.user.id}_page_{page}"
+            queryset = Post.objects.filter(user=target_user).order_by("-created_at")
+        else:
+            cache_key = f"post_list_all_viewer_{request.user.id}_page_{page}"
+            queryset = Post.objects.all().order_by("-created_at")
+
+        cached_postList = cache.get(cache_key)
         if cached_postList is not None:
             return Response(cached_postList)
-            
-        posts = with_post_request_state(
-            Post.objects.filter(user=request.user).order_by("-created_at"), request.user
-        )
+
+        posts = with_post_request_state(queryset, request.user)
 
         paginator = PageNumberPagination()
         paginator.page_size = 5
         paginator.max_page_size = 10
-        # paginator.page_size_query_param = "limit" # by default drf uses page we can set manually also
         result_page = paginator.paginate_queryset(queryset=posts, request=request)
-        serializer = PostSerializer(instance = result_page, many = True, context = {"request": request}) # for sending request to serializer
+        serializer = PostSerializer(instance=result_page, many=True, context={"request": request})
         
-        response =  paginator.get_paginated_response(serializer.data)
+        response = paginator.get_paginated_response(serializer.data)
         cache.set(cache_key, response.data, timeout=CACHE_TIMEOUT)
 
         return response

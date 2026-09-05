@@ -20,6 +20,8 @@ def invalidate_post_caches(post_id, author_id):
     """Remove every cached response that exposes a post's mutable state."""
     cache.delete_pattern(f"post_detail_{post_id}_user_*")
     cache.delete_pattern(f"post_list_{author_id}_*")
+    cache.delete_pattern("post_list_all_*")
+    cache.delete(profile_detail_cache_key(author_id))
 
     # Every follower's feed can contain this post and its counters/liked state.
     from apps.users.models import Follow

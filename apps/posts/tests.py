@@ -122,3 +122,14 @@ class PostEndpointTests(APITestCase):
 
         self.assertEqual(post_response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(comment_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_viewer_can_view_author_posts_by_username(self):
+        Like.objects.create(user=self.viewer, post=self.post)
+        self.authenticate(self.viewer)
+
+        response = self.client.get(f"/api/posts/?username={self.author.username}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["id"], self.post.id)
+        self.assertEqual(response.data["results"][0]["username"], self.author.username)
+        self.assertTrue(response.data["results"][0]["is_liked"])

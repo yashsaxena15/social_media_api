@@ -1,5 +1,6 @@
 import React, { useContext, useState, useEffect, useRef } from 'react';
 import { AuthContext } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { Navigate, Link } from 'react-router-dom';
 import { Compass, Home, User, Heart, MessageSquare, Globe, Search, Users, LayoutGrid, Sun, Moon } from 'lucide-react';
 import AuthDrawer from '../components/AuthDrawer';
@@ -52,43 +53,17 @@ const FadeInSection = ({ children, delay = 0, className = "" }) => {
 
 const LandingPage = () => {
   const { user, loading } = useContext(AuthContext);
+  const { isDark, toggleTheme: toggleDark } = useTheme();
   const [isHeroHovered, setIsHeroHovered] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState('login'); // 'login' | 'register'
-  const [isDark, setIsDark] = useState(() => {
-    try {
-      return localStorage.getItem('aequosia-theme') === 'dark';
-    } catch {
-      return false;
-    }
-  });
 
   const prefersReducedMotion = typeof window !== 'undefined' 
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches 
     : false;
 
   const openDrawer = (mode) => { setDrawerMode(mode); setDrawerOpen(true); };
-
-  const toggleDark = () => {
-    setIsDark(prev => {
-      const next = !prev;
-      try { localStorage.setItem('aequosia-theme', next ? 'dark' : 'light'); } catch {}
-      return next;
-    });
-  };
-
-  useEffect(() => {
-    const root = document.documentElement;
-    if (isDark) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    return () => {
-      root.classList.remove('dark');
-    };
-  }, [isDark]);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
