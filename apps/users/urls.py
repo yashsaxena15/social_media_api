@@ -2,7 +2,10 @@ from django.urls import path
 from .views import (logout_user,
                     toggle_follow, following_list, follower_list,
                     global_search, feed, ProfileDetailUpdateView,
-                    ProfileListView, UserDetailCreateUpdateDeleteView)
+                    ProfileListView, UserDetailCreateUpdateDeleteView,
+                    accept_follow_request, reject_follow_request,
+                    cancel_follow_request, notifications_list,
+                    mark_notifications_read)
 
 
 urlpatterns = [
@@ -21,6 +24,13 @@ urlpatterns = [
     path("users/<int:user_id>/follow/", toggle_follow),
     path("users/<int:user_id>/following/", following_list),
     path("users/<int:user_id>/follower/", follower_list),
+    path("follow-requests/<int:request_id>/accept/", accept_follow_request),
+    path("follow-requests/<int:request_id>/reject/", reject_follow_request),
+    path("follow-requests/<int:request_id>/cancel/", cancel_follow_request),
+
+    # Notifications -->
+    path("notifications/", notifications_list),
+    path("notifications/mark-read/", mark_notifications_read),
     
     # Global search ---->
     
@@ -30,3 +40,4 @@ urlpatterns = [
     
     path("feed/", feed),
 ]
+

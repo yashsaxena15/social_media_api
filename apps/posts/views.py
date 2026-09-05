@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -17,9 +18,12 @@ from apps.cache import (
     invalidate_post_caches,
     post_detail_cache_key,
 )
+from apps.users.permissions import can_view_user_content
+from apps.users.models import Notification
 from .querysets import with_post_request_state
 
 User = get_user_model()
+
 
 
 class PostListCreateView(APIView):
@@ -57,6 +61,8 @@ class PostListCreateView(APIView):
             target_user = None
 
         if target_user:
+            if not can_view_user_content(request.user, target_user):
+                return Response({"detail": "This account is private."}, status=status.HTTP_403_FORBIDDEN)
             if target_user == request.user:
                 cache_key = f"post_list_{target_user.id}_page_{page}"
             else:
@@ -64,7 +70,14 @@ class PostListCreateView(APIView):
             queryset = Post.objects.filter(user=target_user).order_by("-created_at")
         else:
             cache_key = f"post_list_all_viewer_{request.user.id}_page_{page}"
-            queryset = Post.objects.all().order_by("-created_at")
+            if request.user.is_authenticated:
+                queryset = Post.objects.filter(
+                    Q(user__profile__is_private=False)
+                    | Q(user=request.user)
+                    | Q(user__followers__follower=request.user)
+                ).distinct().order_by("-created_at")
+            else:
+                queryset = Post.objects.filter(user__profile__is_private=False).order_by("-created_at")
 
         cached_postList = cache.get(cache_key)
         if cached_postList is not None:
@@ -99,6 +112,9 @@ class PostDetailUpdateDeleteView(APIView):
             with_post_request_state(Post.objects.all(), request.user), id=post_id
         )
 
+        if not can_view_user_content(request.user, post.user):
+            return Response({"detail": "This account is private."}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = PostSerializer(post, context={"request": request})
 
         response = Response(serializer.data)
@@ -106,7 +122,8 @@ class PostDetailUpdateDeleteView(APIView):
 
         return response
 
-    @extend_schema(request=PostSerializer) 
+    @extend_schema(request=PostSerializer)
+ 
     def patch(self, request, post_id):
 
         post = get_object_or_404(Post, id=post_id)
@@ -143,17 +160,31 @@ class PostDetailUpdateDeleteView(APIView):
 
 def toggle_like(request, post_id):
 
-    post = get_object_or_404(Post, id = post_id) # give that post object or 404 error
-    like = Like.objects.filter(user=request.user, post=post).first() # it will give us the first object of queryset and we check whether queryset is empty (None) or has an object
+    post = get_object_or_404(Post, id=post_id)
+    if not can_view_user_content(request.user, post.user):
+        return Response({"detail": "This account is private."}, status=status.HTTP_403_FORBIDDEN)
 
-    # like = Like.objects.filter(user_id = request.user.id, post_id = post.id).first()  # we can also use this we are checking using user id and post id, user_id and post_id are auto created by django when any model has foreinkey relation with other.
+    like = Like.objects.filter(user=request.user, post=post).first() 
     
     if like is not None:
         like.delete()
+        Notification.objects.filter(
+            recipient=post.user,
+            sender=request.user,
+            notification_type="like",
+            post=post
+        ).delete()
         invalidate_post_caches(post.id, post.user_id)
         return Response({"message":"Post disliked"}, status=status.HTTP_200_OK)
     else:
         Like.objects.create(user=request.user, post=post)
+        if request.user != post.user:
+            Notification.objects.create(
+                recipient=post.user,
+                sender=request.user,
+                notification_type="like",
+                post=post
+            )
         invalidate_post_caches(post.id, post.user_id)
         return Response({"message":"Post liked"}, status=status.HTTP_201_CREATED)
     
@@ -166,12 +197,22 @@ class CommentListCreateView(APIView):
     @extend_schema(request=CommentSerializer) 
     def post(self, request, post_id):
     
-        post = get_object_or_404(Post, id = post_id)
+        post = get_object_or_404(Post, id=post_id)
+        if not can_view_user_content(request.user, post.user):
+            return Response({"detail": "This account is private."}, status=status.HTTP_403_FORBIDDEN)
         
-        serializer = CommentSerializer(data= request.data)
+        serializer = CommentSerializer(data=request.data)
         
         if serializer.is_valid():
-            serializer.save(user = request.user, post = post)
+            comment = serializer.save(user=request.user, post=post)
+            if request.user != post.user:
+                Notification.objects.create(
+                    recipient=post.user,
+                    sender=request.user,
+                    notification_type="comment",
+                    post=post,
+                    comment=comment
+                )
             invalidate_comment_list_cache(post_id)
             invalidate_post_caches(post.id, post.user_id)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -180,6 +221,10 @@ class CommentListCreateView(APIView):
         
     def get(self, request, post_id):
         
+        post = get_object_or_404(Post, id=post_id)
+        if not can_view_user_content(request.user, post.user):
+            return Response({"detail": "This account is private."}, status=status.HTTP_403_FORBIDDEN)
+
         page = request.query_params.get("page", 1)
 
         cache_key = f"comment_list_{post_id}_page_{page}"
@@ -188,7 +233,6 @@ class CommentListCreateView(APIView):
         if cached_comments is not None:
             return Response(cached_comments)
         
-        post = get_object_or_404(Post, id=post_id)
         comments = post.comments.select_related("user__profile").order_by("-created_at")
         paginator = PageNumberPagination()
         paginator.page_size = 5
@@ -240,5 +284,6 @@ class CommentUpdateDeleteView(APIView):
 
         invalidate_comment_list_cache(target_post_id)
         invalidate_post_caches(comment.post_id, comment.post.user_id)
+        Notification.objects.filter(comment=comment).delete()
         comment.delete()
         return Response({"message":"Comment deleted"}, status=status.HTTP_204_NO_CONTENT)

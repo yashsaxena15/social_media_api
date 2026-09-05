@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { Search, X, User } from 'lucide-react';
+import { Search, X, User, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../api/axiosInstance';
 import PostCard from '../components/posts/PostCard';
 import { getImageUrl } from '../utils/imageUrl';
+
 
 const SearchPage = () => {
   const [query, setQuery] = useState('');
@@ -180,11 +181,17 @@ const SearchPage = () => {
                       </div>
                     )}
                     <div>
-                      <p className="font-semibold text-gray-900 dark:text-slate-100">{user.username}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-semibold text-gray-900 dark:text-slate-100">{user.username}</p>
+                        {user.is_private && (
+                          <Lock className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" title="Private Account" />
+                        )}
+                      </div>
                       {(user.first_name || user.last_name) && (
                         <p className="text-xs text-gray-500 dark:text-slate-400">{user.first_name} {user.last_name}</p>
                       )}
                     </div>
+
                   </Link>
                 ))}
                 

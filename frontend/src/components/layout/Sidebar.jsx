@@ -1,17 +1,23 @@
 import React, { useContext } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import { Home, Compass, PlusSquare, User, Settings } from 'lucide-react';
+import { NotificationContext } from '../../context/NotificationContext';
+import { Home, Compass, Bell, PlusSquare, User, Settings } from 'lucide-react';
 import { getImageUrl } from '../../utils/imageUrl';
 
 const Sidebar = () => {
   const { user } = useContext(AuthContext);
+  const { unreadCount } = useContext(NotificationContext);
+
+  const displayBadgeText = unreadCount > 9 ? '9+' : unreadCount;
 
   const navItems = [
     { name: 'Home', path: '/feed', icon: <Home className="w-6 h-6" /> },
     { name: 'Search', path: '/search', icon: <Compass className="w-6 h-6" /> },
+    { name: 'Notifications', path: '/notifications', icon: <Bell className="w-6 h-6" /> },
     { name: 'Profile', path: user?.username ? `/profile/${user.username}` : '/feed', icon: <User className="w-6 h-6" /> },
   ];
+
 
   return (
     <div className="fixed top-0 left-0 h-screen w-16 md:w-64 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 flex flex-col justify-between py-6 transition-colors duration-200">
@@ -31,22 +37,41 @@ const Sidebar = () => {
           </Link>
         </div>
         <nav className="flex flex-col gap-2 px-2 md:px-4">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              className={({ isActive }) =>
-                `flex items-center gap-4 p-3 rounded-lg transition-colors ${
-                  isActive
-                    ? 'font-bold text-brand-purple dark:text-brand-teal bg-brand-purple/5 dark:bg-brand-teal/10'
-                    : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'
-                }`
-              }
-            >
-              {item.icon}
-              <span className="hidden md:block text-lg">{item.name}</span>
-            </NavLink>
-          ))}
+          {navItems.map((item) => {
+            const isNotifications = item.name === 'Notifications';
+            const showBadge = isNotifications && unreadCount > 0;
+
+            return (
+              <NavLink
+                key={item.name}
+                to={item.path}
+                className={({ isActive }) =>
+                  `flex items-center gap-4 p-3 rounded-lg transition-colors relative ${
+                    isActive
+                      ? 'font-bold text-brand-purple dark:text-brand-teal bg-brand-purple/5 dark:bg-brand-teal/10'
+                      : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'
+                  }`
+                }
+              >
+                <div className="relative flex items-center justify-center">
+                  {item.icon}
+                  {/* Collapsed/Mobile Badge (attached to bell icon) */}
+                  {showBadge && (
+                    <span className="md:hidden absolute -top-1.5 -right-2 min-w-[1.125rem] h-[1.125rem] px-1 bg-brand-purple dark:bg-brand-teal text-white dark:text-slate-950 text-[10px] font-bold rounded-full flex items-center justify-center leading-none ring-2 ring-white dark:ring-slate-900 shadow-xs">
+                      {displayBadgeText}
+                    </span>
+                  )}
+                </div>
+                <span className="hidden md:block text-lg flex-1">{item.name}</span>
+                {/* Desktop Badge (pill on right side of link) */}
+                {showBadge && (
+                  <span className="hidden md:inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 bg-brand-purple dark:bg-brand-teal text-white dark:text-slate-950 text-xs font-bold rounded-full shadow-xs">
+                    {displayBadgeText}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
       </div>
 

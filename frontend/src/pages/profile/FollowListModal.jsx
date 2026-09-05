@@ -10,6 +10,9 @@ const FollowListModal = ({ userId, type, onClose }) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
+  const [error, setError] = useState(null);
+
+  const title = type === 'followers' ? 'Followers' : 'Following';
 
   useEffect(() => {
     if (!userId) {
@@ -21,8 +24,12 @@ const FollowListModal = ({ userId, type, onClose }) => {
       : `users/${userId}/following/`;
 
     const fetch = async () => {
-      if (page === 1) setLoading(true);
-      else setLoadingMore(true);
+      if (page === 1) {
+        setLoading(true);
+        setError(null);
+      } else {
+        setLoadingMore(true);
+      }
 
       try {
         const res = await api.get(endpoint, { params: { page } });
@@ -38,6 +45,9 @@ const FollowListModal = ({ userId, type, onClose }) => {
         setHasNext(!!res.data.next);
       } catch (err) {
         console.error('Failed to fetch follow list', err);
+        if (err.response?.status === 403) {
+          setError(`This account is private. Follow this account to see their ${title.toLowerCase()}.`);
+        }
         if (page === 1) setList([]);
       } finally {
         setLoading(false);
@@ -47,8 +57,6 @@ const FollowListModal = ({ userId, type, onClose }) => {
 
     fetch();
   }, [userId, type, page]);
-
-  const title = type === 'followers' ? 'Followers' : 'Following';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -64,13 +72,18 @@ const FollowListModal = ({ userId, type, onClose }) => {
         <div className="overflow-y-auto flex-1">
           {loading ? (
             <div className="flex justify-center p-6">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-blue"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-purple dark:border-brand-teal"></div>
+            </div>
+          ) : error ? (
+            <div className="text-center p-6 text-gray-500 dark:text-slate-400 text-sm">
+              {error}
             </div>
           ) : list.length === 0 ? (
             <div className="text-center p-6 text-gray-500 dark:text-slate-400 text-sm">
               No {title.toLowerCase()} yet.
             </div>
           ) : (
+
             <div className="pb-4">
               {list.map((item) => {
                 const username = type === 'followers' ? item.follower : item.following;

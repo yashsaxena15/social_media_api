@@ -156,6 +156,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Later added fields ---
 
 AUTH_USER_MODEL = "users.User" # tell django we are using custom user
+SILENCED_SYSTEM_CHECKS = ["models.W036"]
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (

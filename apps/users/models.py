@@ -18,7 +18,7 @@ class Profile(models.Model):
     full_name = models.CharField(max_length=100)
     bio = models.CharField(blank=True, max_length=200)
     profile_image = models.ImageField(upload_to="profiles/",blank=True,null=True)
-
+    is_private = models.BooleanField(default=False)
 
     def __str__(self):
         return self.full_name 
@@ -36,4 +36,93 @@ class Follow(models.Model):
             models.UniqueConstraint(fields=["follower", "following"], name = "unique_follow_relationship")
 
         ]
+
+
+class FollowRequest(models.Model):
+    STATUS_CHOICES = (
+        ("pending", "Pending"),
+        ("accepted", "Accepted"),
+        ("rejected", "Rejected"),
+    )
+    requester = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sent_follow_requests",
+    )
+    target = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="received_follow_requests",
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["requester", "target"],
+                condition=models.Q(status="pending"),
+                name="unique_pending_follow_request",
+            )
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.requester.username} -> {self.target.username} ({self.status})"
+
+
+class Notification(models.Model):
+    NOTIFICATION_TYPES = (
+        ("follow_request", "Follow Request"),
+        ("follow_accepted", "Follow Accepted"),
+        ("follow", "Follow"),
+        ("like", "Like"),
+        ("comment", "Comment"),
+    )
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sent_notifications",
+    )
+    notification_type = models.CharField(
+        max_length=30,
+        choices=NOTIFICATION_TYPES,
+        default="follow_request",
+    )
+    follow_request = models.ForeignKey(
+        FollowRequest,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notifications",
+    )
+    post = models.ForeignKey(
+        "posts.Post",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notifications",
+    )
+    comment = models.ForeignKey(
+        "posts.Comment",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notifications",
+    )
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Notification to {self.recipient.username}: {self.notification_type} from {self.sender.username}"
+
     

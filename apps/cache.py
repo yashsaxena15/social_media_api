@@ -40,3 +40,15 @@ def invalidate_follow_caches(follower_id, following_id):
     cache.delete_pattern(f"user_feed_{follower_id}_*")
     cache.delete(profile_detail_cache_key(follower_id))
     cache.delete(profile_detail_cache_key(following_id))
+
+
+def invalidate_privacy_caches(user_id):
+    """Remove cached posts, feeds, and profile details when a user's privacy changes."""
+    cache.delete_pattern(f"post_list_{user_id}_*")
+    cache.delete_pattern("post_list_all_*")
+    cache.delete_pattern("post_detail_*")
+    cache.delete(profile_detail_cache_key(user_id))
+    cache.delete(f"user_detail_{user_id}")
+    cache.delete_pattern(f"user_following_{user_id}_*")
+    cache.delete_pattern(f"user_follower_{user_id}_*")
+

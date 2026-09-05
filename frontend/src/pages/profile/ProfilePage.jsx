@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { UserCheck, UserPlus, Grid, PlusSquare } from 'lucide-react';
+import { UserCheck, UserPlus, Grid, PlusSquare, Lock, Clock } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import { AuthContext } from '../../context/AuthContext';
 import PostCard from '../../components/posts/PostCard';
@@ -11,56 +11,44 @@ import { getImageUrl } from '../../utils/imageUrl';
 
 const ProfilePage = () => {
   const { username } = useParams();
-  const { user: currentUser } = useContext(AuthContext);
+  const { user: currentUser, refreshUser } = useContext(AuthContext);
 
   const isOwnProfile = username === currentUser?.username;
 
   const [profile, setProfile] = useState(null);       // profile data (includes user_id)
   const [posts, setPosts] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isRequested, setIsRequested] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
   const [followModal, setFollowModal] = useState(null); // 'followers' | 'following' | null
   const [showCreatePost, setShowCreatePost] = useState(false);
 
-  // Fetch profile by exact username using our new ?username= filter
+  // Fetch profile by exact username
   const fetchProfile = async () => {
     try {
-      if (isOwnProfile) {
-        const res = await api.get('profile/me/');
-        setProfile(res.data);
-      } else {
-        // GET /api/profiles/?username=<name> — returns a single profile object
-        const res = await api.get(`profiles/?username=${encodeURIComponent(username)}`);
-        setProfile(res.data);
-      }
+      const endpoint = isOwnProfile ? 'profile/me/' : `profiles/?username=${encodeURIComponent(username)}`;
+      const res = await api.get(endpoint);
+      setProfile(res.data);
+      setIsFollowing(!!res.data.is_following);
+      setIsRequested(!!res.data.is_requested);
+      return res.data;
     } catch (err) {
       console.error('Failed to fetch profile', err);
       setProfile(null);
+      return null;
     }
   };
 
-  // Fetch all posts and filter by username
+  // Fetch posts for this user
   const fetchUserPosts = async () => {
     try {
-      const res = await api.get('posts/');
+      const res = await api.get(`posts/?username=${encodeURIComponent(username)}`);
       const allPosts = res.data.results ? res.data.results : res.data;
-      setPosts(allPosts.filter(p => p.username === username));
+      setPosts(Array.isArray(allPosts) ? allPosts : []);
     } catch (err) {
       console.error('Failed to fetch posts', err);
-    }
-  };
-
-  // Check if current user is following this profile
-  const checkFollowStatus = async (targetUserId) => {
-    if (!targetUserId || isOwnProfile) return;
-    try {
-      // Check current user's following list for the target user's id
-      const res = await api.get(`users/${currentUser?.id ?? 0}/following/`);
-      const data = res.data.results ? res.data.results : res.data;
-      setIsFollowing(data.some(f => f.following === username));
-    } catch (err) {
-      // silently ignore — follow status is not critical
+      setPosts([]);
     }
   };
 
@@ -70,29 +58,48 @@ const ProfilePage = () => {
       setProfile(null);
       setPosts([]);
       setIsFollowing(false);
-      await Promise.all([fetchProfile(), fetchUserPosts()]);
+      setIsRequested(false);
+      const data = await fetchProfile();
+      if (data && (isOwnProfile || !data.is_private || data.can_view_content || data.is_following)) {
+        await fetchUserPosts();
+      }
       setLoading(false);
     };
     if (username) load();
   }, [username, isOwnProfile]);
 
-  // Once we have the profile (and its user_id), check follow status
-  useEffect(() => {
-    if (profile?.user_id && !isOwnProfile) {
-      checkFollowStatus(profile.user_id);
-    }
-  }, [profile?.user_id]);
-
   const handleFollowToggle = async () => {
     if (!profile?.user_id) return;
     try {
       const res = await api.post(`users/${profile.user_id}/follow/`);
-      const followed = res.data.message === 'Followed';
-      setIsFollowing(followed);
-      setProfile(prev => prev ? {
-        ...prev,
-        followers_count: followed ? prev.followers_count + 1 : prev.followers_count - 1
-      } : prev);
+      const status = res.data.status; // 'following' | 'requested' | 'none'
+      if (status === 'following') {
+        setIsFollowing(true);
+        setIsRequested(false);
+        setProfile(prev => prev ? {
+          ...prev,
+          followers_count: prev.followers_count + 1,
+          can_view_content: true,
+        } : prev);
+        fetchUserPosts();
+      } else if (status === 'requested') {
+        setIsFollowing(false);
+        setIsRequested(true);
+      } else { // 'none'
+        const wasFollowing = isFollowing;
+        setIsFollowing(false);
+        setIsRequested(false);
+        if (wasFollowing) {
+          setProfile(prev => prev ? {
+            ...prev,
+            followers_count: Math.max(0, prev.followers_count - 1),
+            can_view_content: !prev.is_private,
+          } : prev);
+          if (profile.is_private) {
+            setPosts([]);
+          }
+        }
+      }
     } catch (err) {
       console.error('Follow toggle failed', err);
     }
@@ -120,15 +127,19 @@ const ProfilePage = () => {
   const handleProfileUpdated = (updatedProfile) => {
     setProfile(prev => ({ ...prev, ...updatedProfile }));
     setShowEditModal(false);
+    if (refreshUser) {
+      refreshUser();
+    }
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-purple dark:border-brand-teal"></div>
       </div>
     );
   }
+
 
   if (!profile) {
     return (
@@ -161,7 +172,15 @@ const ProfilePage = () => {
           {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-4 mb-3 flex-wrap">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{profile.username}</h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{profile.username}</h2>
+                {profile.is_private && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 border border-gray-200/80 dark:border-slate-700" title="Private Account">
+                    <Lock className="w-3 h-3 text-brand-purple dark:text-brand-teal" />
+                    <span>Private</span>
+                  </span>
+                )}
+              </div>
 
               {isOwnProfile ? (
                 <button
@@ -170,33 +189,58 @@ const ProfilePage = () => {
                 >
                   Edit Profile
                 </button>
+              ) : isFollowing ? (
+                <button
+                  onClick={handleFollowToggle}
+                  className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800"
+                >
+                  <UserCheck className="w-4 h-4 text-brand-teal" />
+                  <span>Following</span>
+                </button>
+              ) : isRequested ? (
+                <button
+                  onClick={handleFollowToggle}
+                  className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors border border-brand-purple/40 dark:border-brand-teal/40 bg-brand-purple/5 dark:bg-brand-teal/10 text-brand-purple dark:text-brand-teal hover:bg-brand-purple/10 dark:hover:bg-brand-teal/20"
+                  title="Click to cancel follow request"
+                >
+                  <Clock className="w-4 h-4" />
+                  <span>Requested</span>
+                </button>
               ) : (
                 <button
                   onClick={handleFollowToggle}
-                  className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    isFollowing
-                      ? 'border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
-                      : 'bg-gradient-to-r from-brand-purple to-brand-teal text-white hover:opacity-90'
-                  }`}
+                  className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors bg-gradient-to-r from-brand-purple to-brand-teal text-white hover:opacity-90 shadow-xs"
                 >
-                  {isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                  {isFollowing ? 'Following' : 'Follow'}
+                  <UserPlus className="w-4 h-4" />
+                  <span>Follow</span>
                 </button>
               )}
             </div>
 
             {/* Stats */}
             <div className="flex gap-6 mb-3">
-              <span className="text-gray-700 dark:text-slate-300"><strong>{posts.length}</strong> posts</span>
+              <span className="text-gray-700 dark:text-slate-300">
+                <strong>{profile.posts_count ?? posts.length}</strong> posts
+              </span>
               <button
+                disabled={!isOwnProfile && profile.is_private && !profile.can_view_content && !isFollowing}
                 onClick={() => setFollowModal('followers')}
-                className="text-gray-700 dark:text-slate-300 hover:text-brand-blue dark:hover:text-brand-teal transition-colors"
+                className={`text-gray-700 dark:text-slate-300 transition-colors ${
+                  !isOwnProfile && profile.is_private && !profile.can_view_content && !isFollowing
+                    ? 'opacity-80 cursor-default'
+                    : 'hover:text-brand-blue dark:hover:text-brand-teal cursor-pointer'
+                }`}
               >
                 <strong>{profile.followers_count}</strong> followers
               </button>
               <button
+                disabled={!isOwnProfile && profile.is_private && !profile.can_view_content && !isFollowing}
                 onClick={() => setFollowModal('following')}
-                className="text-gray-700 dark:text-slate-300 hover:text-brand-blue dark:hover:text-brand-teal transition-colors"
+                className={`text-gray-700 dark:text-slate-300 transition-colors ${
+                  !isOwnProfile && profile.is_private && !profile.can_view_content && !isFollowing
+                    ? 'opacity-80 cursor-default'
+                    : 'hover:text-brand-blue dark:hover:text-brand-teal cursor-pointer'
+                }`}
               >
                 <strong>{profile.following_count}</strong> following
               </button>
@@ -209,46 +253,62 @@ const ProfilePage = () => {
         </div>
       </div>
 
-      {/* Posts Section */}
-      <div className="flex items-center justify-between mb-4 border-t border-gray-200 dark:border-slate-800 pt-4">
-        <div className="flex items-center gap-2 text-gray-600 dark:text-slate-400 font-medium">
-          <Grid className="w-4 h-4" />
-          <span>Posts</span>
-        </div>
-        {isOwnProfile && (
-          <button
-            onClick={() => setShowCreatePost(prev => !prev)}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              showCreatePost
-                ? 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
-                : 'bg-gradient-to-r from-brand-purple to-brand-teal text-white hover:opacity-90'
-            }`}
-          >
-            <PlusSquare className="w-4 h-4" />
-            {showCreatePost ? 'Cancel' : 'New Post'}
-          </button>
-        )}
-      </div>
-
-      {/* Create Post Form (collapsible) */}
-      {isOwnProfile && showCreatePost && (
-        <CreatePost
-          onPostCreated={(newPost) => {
-            setPosts(prev => [newPost, ...prev]);
-            setShowCreatePost(false);
-          }}
-        />
-      )}
-
-      {posts.length === 0 ? (
-        <div className="text-center p-8 bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-800 text-gray-500 dark:text-slate-400">
-          No posts yet.
+      {/* Content Section: If private and viewer not follower, show private locked notice */}
+      {!isOwnProfile && profile.is_private && !profile.can_view_content && !isFollowing ? (
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-12 text-center my-6 transition-colors shadow-xs">
+          <div className="w-16 h-16 mx-auto rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-500 dark:text-slate-400 mb-4">
+            <Lock className="w-8 h-8 text-brand-purple dark:text-brand-teal" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">This Account is Private</h3>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1.5 max-w-sm mx-auto">
+            Follow this account to see their photos and posts.
+          </p>
         </div>
       ) : (
-        posts.map(post => (
-          <PostCard key={post.id} post={post} onLikeToggle={handleLikeToggle} />
-        ))
+        <>
+          {/* Posts Section */}
+          <div className="flex items-center justify-between mb-4 border-t border-gray-200 dark:border-slate-800 pt-4">
+            <div className="flex items-center gap-2 text-gray-600 dark:text-slate-400 font-medium">
+              <Grid className="w-4 h-4" />
+              <span>Posts</span>
+            </div>
+            {isOwnProfile && (
+              <button
+                onClick={() => setShowCreatePost(prev => !prev)}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  showCreatePost
+                    ? 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
+                    : 'bg-gradient-to-r from-brand-purple to-brand-teal text-white hover:opacity-90'
+                }`}
+              >
+                <PlusSquare className="w-4 h-4" />
+                {showCreatePost ? 'Cancel' : 'New Post'}
+              </button>
+            )}
+          </div>
+
+          {/* Create Post Form (collapsible) */}
+          {isOwnProfile && showCreatePost && (
+            <CreatePost
+              onPostCreated={(newPost) => {
+                setPosts(prev => [newPost, ...prev]);
+                setShowCreatePost(false);
+              }}
+            />
+          )}
+
+          {posts.length === 0 ? (
+            <div className="text-center p-8 bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-800 text-gray-500 dark:text-slate-400">
+              No posts yet.
+            </div>
+          ) : (
+            posts.map(post => (
+              <PostCard key={post.id} post={post} onLikeToggle={handleLikeToggle} />
+            ))
+          )}
+        </>
       )}
+
 
       {/* Edit Profile Modal */}
       {showEditModal && (
