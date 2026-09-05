@@ -14,14 +14,22 @@ class User(AbstractUser):  # it is use for creating custom user giving us more f
                            
 
 class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE,related_name="profile")
+    GENDER_CHOICES = (
+        ("male", "Male"),
+        ("female", "Female"),
+        ("other", "Other"),
+    )
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     full_name = models.CharField(max_length=100)
     bio = models.CharField(blank=True, max_length=200)
-    profile_image = models.ImageField(upload_to="profiles/",blank=True,null=True)
+    profile_image = models.ImageField(upload_to="profiles/", blank=True, null=True)
     is_private = models.BooleanField(default=False)
+    dob = models.DateField(null=True, blank=True)
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, null=True)
 
     def __str__(self):
-        return self.full_name 
+        return self.full_name or self.user.username 
     
 class Follow(models.Model):
     

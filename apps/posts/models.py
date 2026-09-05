@@ -9,6 +9,7 @@ class Post(models.Model):
 
     caption = models.CharField(blank=True, max_length=300) # blank = True ---> means this field can be blank in JSON 
     image = models.ImageField(upload_to= "posts/",blank=True, null= True) # null = True --> means column can store null in database
+    thumbnail = models.ImageField(upload_to="posts/thumbnails/", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -1,4 +1,7 @@
 import json
+import io
+from PIL import Image
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from django.conf import settings
 from django.core.cache import cache
@@ -37,20 +40,47 @@ class UserEndpointTests(APITestCase):
 
     def test_registration_login_and_logout(self):
         registration = self.client.post(
-            "/api/users/me/", {"username": "new-user", "password": "password123"}
+            "/api/users/me/",
+            {
+                "username": "new-user",
+                "password": "password123",
+                "full_name": "New User",
+                "dob": "1999-05-15",
+                "gender": "female",
+            },
         )
         login = self.client.post(
             "/api/token/", {"username": "new-user", "password": "password123"}
         )
 
         self.assertEqual(registration.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(Profile.objects.filter(user__username="new-user").exists())
+        profile = Profile.objects.filter(user__username="new-user").first()
+        self.assertIsNotNone(profile)
+        self.assertEqual(str(profile.dob), "1999-05-15")
+        self.assertEqual(profile.gender, "female")
         self.assertEqual(login.status_code, status.HTTP_200_OK)
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
         logout = self.client.post("/api/logout-user/", {"refresh": login.data["refresh"]})
 
         self.assertEqual(logout.status_code, status.HTTP_200_OK)
+
+    def test_profile_dob_and_gender_update(self):
+        self.authenticate(self.user)
+        res = self.client.patch(
+            "/api/profile/me/",
+            {"dob": "2000-01-01", "gender": "male"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["dob"], "2000-01-01")
+        self.assertEqual(res.data["gender"], "male")
+
+        # Verify through profile detail get
+        detail_res = self.client.get("/api/profile/me/")
+        self.assertEqual(detail_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(detail_res.data["dob"], "2000-01-01")
+        self.assertEqual(detail_res.data["gender"], "male")
 
     def test_authenticated_user_endpoints_reject_anonymous_requests(self):
         user_response = self.client.get("/api/users/me/")
@@ -413,6 +443,33 @@ class UserEndpointTests(APITestCase):
         empty_res = self.client.get("/api/notifications/?filter=pending_requests")
         self.assertEqual(empty_res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(empty_res.data["results"]), 0)
+
+    def test_profile_avatar_upload_optimizes_dimension_and_preserves_ratio(self):
+        self.authenticate(self.user)
+        # 1600x1200 avatar upload
+        img = Image.new("RGB", (1600, 1200), color=(220, 150, 100))
+        img_io = io.BytesIO()
+        img.save(img_io, format="JPEG", quality=90)
+        img_io.seek(0)
+
+        uploaded_file = SimpleUploadedFile(
+            "large_avatar.jpg", img_io.getvalue(), content_type="image/jpeg"
+        )
+
+        response = self.client.patch(
+            "/api/profile/me/",
+            {"profile_image": uploaded_file},
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.profile.refresh_from_db()
+        self.assertTrue(bool(self.user.profile.profile_image))
+
+        with Image.open(self.user.profile.profile_image.path) as saved_avatar:
+            w, h = saved_avatar.size
+            self.assertLessEqual(max(w, h), 800)
+            self.assertAlmostEqual(w / h, 1600 / 1200, places=2)
 
 
 

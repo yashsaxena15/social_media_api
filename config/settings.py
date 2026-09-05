@@ -28,7 +28,7 @@ DEBUG = config("DEBUG", default=False, cast=bool)
 
 ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS",
-    default="social-media-api.backendforge.qd.je"
+    default="localhost,127.0.0.1,testserver,social-media-api.backendforge.qd.je"
 ).split(",")
 
 # Application definition
@@ -194,6 +194,10 @@ SIMPLE_JWT = {
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Upload limits for high-resolution images (allow up to 25MB before processing)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
 
 SPECTACULAR_SETTINGS = {   # Now Swagger UI shows API info.
     "TITLE": "Social Media API",

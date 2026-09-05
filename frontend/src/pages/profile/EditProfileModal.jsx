@@ -3,6 +3,7 @@ import { X, Upload } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import { getImageUrl } from '../../utils/imageUrl';
 import FileErrorModal from '../../components/common/FileErrorModal';
+import { optimizeImageForUpload } from '../../utils/imageOptimizer';
 
 const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
 
@@ -10,6 +11,8 @@ const EditProfileModal = ({ profile, onClose, onUpdated }) => {
   const [formData, setFormData] = useState({
     full_name: profile.full_name || '',
     bio: profile.bio || '',
+    dob: profile.dob || '',
+    gender: profile.gender || '',
   });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(getImageUrl(profile.profile_image) || null);
@@ -47,8 +50,15 @@ const EditProfileModal = ({ profile, onClose, onUpdated }) => {
       const data = new FormData();
       data.append('bio', formData.bio);
       data.append('full_name', formData.full_name);
+      data.append('dob', formData.dob || '');
+      data.append('gender', formData.gender || '');
       if (imageFile) {
-        data.append('profile_image', imageFile);
+        const optimizedAvatar = await optimizeImageForUpload(imageFile, {
+          maxDimension: 800,
+          quality: 0.88,
+          isAvatar: true,
+        });
+        data.append('profile_image', optimizedAvatar);
       }
 
       const res = await api.patch('profile/me/', data, {
@@ -126,6 +136,35 @@ const EditProfileModal = ({ profile, onClose, onUpdated }) => {
               className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-gray-900 dark:text-slate-100 rounded-lg px-3 py-2 focus:outline-none focus:border-brand-blue dark:focus:border-brand-teal text-sm transition-colors"
               placeholder="Your full name"
             />
+          </div>
+
+          {/* Date of Birth and Gender */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Date of Birth</label>
+              <input
+                type="date"
+                name="dob"
+                value={formData.dob}
+                onChange={handleChange}
+                max={new Date().toISOString().split("T")[0]}
+                className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-gray-900 dark:text-slate-100 rounded-lg px-3 py-2 focus:outline-none focus:border-brand-blue dark:focus:border-brand-teal text-sm transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Gender</label>
+              <select
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+                className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-gray-900 dark:text-slate-100 rounded-lg px-3 py-2 focus:outline-none focus:border-brand-blue dark:focus:border-brand-teal text-sm transition-colors"
+              >
+                <option value="">Select gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
           </div>
 
           {/* Bio */}

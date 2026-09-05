@@ -27,6 +27,8 @@ from apps.cache import (
     profile_detail_cache_key,
 )
 from apps.posts.querysets import with_post_request_state
+from rest_framework.exceptions import ValidationError as DRFValidationError
+from apps.common.image_optimizer import optimize_avatar_image
 
 # -------- GET ALL PROFILES --------
 
@@ -81,10 +83,33 @@ class ProfileDetailUpdateView(APIView):
 
         profile = request.user.profile      # Get the current user profile
         old_is_private = profile.is_private
+
+        raw_avatar = request.FILES.get("profile_image")
+        if not raw_avatar and hasattr(request.data, "get"):
+            candidate = request.data.get("profile_image")
+            if hasattr(candidate, "read"):
+                raw_avatar = candidate
+
+        optimized_avatar = None
+        if raw_avatar:
+            try:
+                optimized_avatar = optimize_avatar_image(raw_avatar)
+            except DRFValidationError as e:
+                return Response({"profile_image": e.detail}, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                return Response(
+                    {"profile_image": [f"Failed to process image: {str(e)}"]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         serializer = ProfileSerializer(profile, data=request.data, partial=True, context={"request": request})
 
         if serializer.is_valid():
-            updated_profile = serializer.save()
+            save_kwargs = {}
+            if optimized_avatar:
+                save_kwargs["profile_image"] = optimized_avatar
+
+            updated_profile = serializer.save(**save_kwargs)
             new_is_private = updated_profile.is_private
 
             # If switching from private to public, auto-accept all pending requests

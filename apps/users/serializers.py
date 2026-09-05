@@ -22,7 +22,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = Profile
         fields = [
             "user_id", "username", "email", "full_name", "bio", "profile_image",
-            "is_private", "followers_count", "following_count", "posts_count",
+            "is_private", "dob", "gender", "followers_count", "following_count", "posts_count",
             "is_following", "is_requested", "can_view_content"
         ]
 
@@ -64,17 +64,45 @@ class ProfileSerializer(serializers.ModelSerializer):
 User = get_user_model() # → returns YOUR custom User, Give me whichever User model this project uses.
 
 class RegisterSerializer(serializers.ModelSerializer):
-    
+    email = serializers.EmailField(required=False, allow_blank=True)
+    full_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    bio = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    dob = serializers.DateField(required=False, allow_null=True)
+    gender = serializers.ChoiceField(choices=Profile.GENDER_CHOICES, required=False, allow_null=True, allow_blank=True)
+
     class Meta:
         model = User
-        fields = ["username","password"]
+        fields = ["username", "email", "password", "full_name", "bio", "dob", "gender"]
         extra_kwargs = {
-            "password":{"write_only":True} # ✔ client can SEND password
-                                           #❌ password will NEVER appear in response
+            "password": {"write_only": True}
         }
+
     def create(self, validated_data):
-        user = User.objects.create_user(**validated_data)  #create_user used for hashes password, sets defaults, safe authentication
-                                                        
+        full_name = validated_data.pop("full_name", "")
+        bio = validated_data.pop("bio", "")
+        dob = validated_data.pop("dob", None)
+        gender = validated_data.pop("gender", None)
+
+        user = User.objects.create_user(**validated_data)
+
+        # Profile is created via post_save signal; update it with profile details
+        profile, _ = Profile.objects.get_or_create(user=user)
+        updated = False
+        if full_name:
+            profile.full_name = full_name
+            updated = True
+        if bio:
+            profile.bio = bio
+            updated = True
+        if dob:
+            profile.dob = dob
+            updated = True
+        if gender:
+            profile.gender = gender
+            updated = True
+        if updated:
+            profile.save()
+
         return user
     
 class UserUpdateSerializer(serializers.ModelSerializer):
@@ -222,11 +250,13 @@ class NotificationSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.ImageField(allow_null=True))
     def get_post_image(self, obj):
         post = getattr(obj, "post", None)
-        if post and post.image:
-            request = self.context.get("request")
-            if request is not None:
-                return request.build_absolute_uri(post.image.url)
-            return post.image.url
+        if post:
+            target = post.thumbnail or post.image
+            if target:
+                request = self.context.get("request")
+                if request is not None:
+                    return request.build_absolute_uri(target.url)
+                return target.url
         return None
 
     @extend_schema_field(serializers.ListField(child=serializers.CharField()))

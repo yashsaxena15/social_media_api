@@ -22,6 +22,9 @@ from apps.users.permissions import can_view_user_content
 from apps.users.models import Notification
 from .querysets import with_post_request_state
 
+from rest_framework.exceptions import ValidationError as DRFValidationError
+from apps.common.image_optimizer import optimize_post_image
+
 User = get_user_model()
 
 
@@ -31,11 +34,36 @@ class PostListCreateView(APIView):
     
     @extend_schema(request=PostSerializer)
     def post(self, request):  # create post
-        
+        raw_image = request.FILES.get("image")
+        if not raw_image and hasattr(request.data, "get"):
+            candidate = request.data.get("image")
+            if hasattr(candidate, "read"):
+                raw_image = candidate
+
+        optimized_image = None
+        thumbnail_image = None
+
+        if raw_image:
+            try:
+                optimized_image, thumbnail_image = optimize_post_image(raw_image)
+            except DRFValidationError as e:
+                return Response({"image": e.detail}, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                return Response(
+                    {"image": [f"Failed to process image: {str(e)}"]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         serializer = PostSerializer(data=request.data, context={"request": request})
 
         if serializer.is_valid():
-            post = serializer.save(user=request.user)
+            save_kwargs = {"user": request.user}
+            if optimized_image:
+                save_kwargs["image"] = optimized_image
+            if thumbnail_image:
+                save_kwargs["thumbnail"] = thumbnail_image
+
+            post = serializer.save(**save_kwargs)
             invalidate_post_caches(post.id, post.user_id)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
@@ -131,10 +159,36 @@ class PostDetailUpdateDeleteView(APIView):
         if post.user != request.user:  # Ensure user modifies only their own post
             return Response({"error":"You cannot edit this post!"}, status= status.HTTP_403_FORBIDDEN)
 
+        raw_image = request.FILES.get("image")
+        if not raw_image and hasattr(request.data, "get"):
+            candidate = request.data.get("image")
+            if hasattr(candidate, "read"):
+                raw_image = candidate
+
+        optimized_image = None
+        thumbnail_image = None
+
+        if raw_image:
+            try:
+                optimized_image, thumbnail_image = optimize_post_image(raw_image)
+            except DRFValidationError as e:
+                return Response({"image": e.detail}, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                return Response(
+                    {"image": [f"Failed to process image: {str(e)}"]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         serializer = PostSerializer(instance = post, data = request.data, partial = True, context = {"request": request}) # partial ---> update only provided fields
 
         if serializer.is_valid():
-            serializer.save()
+            save_kwargs = {}
+            if optimized_image:
+                save_kwargs["image"] = optimized_image
+            if thumbnail_image:
+                save_kwargs["thumbnail"] = thumbnail_image
+
+            serializer.save(**save_kwargs)
             invalidate_post_caches(post.id, post.user_id)
             return Response(serializer.data)
         

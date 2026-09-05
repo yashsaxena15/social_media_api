@@ -24,7 +24,7 @@ const AuthDrawer = ({ isOpen, mode: initialMode, onClose, isDark = false }) => {
   const [loginLoading, setLoginLoading] = useState(false);
 
   // Register form state
-  const [regData, setRegData]       = useState({ username: "", email: "", password: "", bio: "" });
+  const [regData, setRegData]       = useState({ username: "", email: "", password: "", bio: "", dob: "", gender: "" });
   const [showRegPw, setShowRegPw]   = useState(false);
   const [regError, setRegError]     = useState("");
   const [regLoading, setRegLoading] = useState(false);
@@ -76,7 +76,7 @@ const AuthDrawer = ({ isOpen, mode: initialMode, onClose, isDark = false }) => {
   const switchMode = (newMode) => {
     setLoginError(""); setRegError("");
     setLoginData({ username: "", password: "" });
-    setRegData({ username: "", email: "", password: "", bio: "" });
+    setRegData({ username: "", email: "", password: "", bio: "", dob: "", gender: "" });
     setMode(newMode);
   };
 
@@ -277,9 +277,40 @@ const RegisterForm = ({
             </button>
           </div>
         </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className={labelCls}>
+              Date of Birth <span className={subCls + " font-normal"}>(optional)</span>
+            </label>
+            <input
+              type="date"
+              name="dob"
+              value={formData.dob}
+              onChange={handleChange}
+              max={new Date().toISOString().split("T")[0]}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>
+              Gender <span className={subCls + " font-normal"}>(optional)</span>
+            </label>
+            <select
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              className={inputCls}
+            >
+              <option value="">Select gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
         <div>
           <label className={labelCls}>Bio <span className={subCls + " font-normal"}>(optional)</span></label>
-          <textarea name="bio" value={formData.bio} onChange={handleChange} rows={3} placeholder="Tell the community a little about yourself…" className={`${inputCls} resize-none`} />
+          <textarea name="bio" value={formData.bio} onChange={handleChange} rows={2} placeholder="Tell the community a little about yourself…" className={`${inputCls} resize-none`} />
         </div>
         <button type="submit" disabled={loading} className="w-full py-3 rounded-lg font-bold text-white bg-gradient-to-r from-brand-purple to-brand-teal hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed mt-1">
           {loading ? "Creating account…" : "Join Aequosia"}

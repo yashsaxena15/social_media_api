@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { ImagePlus, Send } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import FileErrorModal from '../common/FileErrorModal';
+import { optimizeImageForUpload } from '../../utils/imageOptimizer';
 
 const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
 
@@ -10,6 +11,7 @@ const CreatePost = ({ onPostCreated }) => {
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [showErrorModal, setShowErrorModal] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -22,6 +24,7 @@ const CreatePost = ({ onPostCreated }) => {
         setShowErrorModal(true);
         return;
       }
+      setError('');
       setImage(file);
       setPreview(URL.createObjectURL(file));
     }
@@ -40,10 +43,14 @@ const CreatePost = ({ onPostCreated }) => {
     if (!caption.trim() && !image) return;
 
     setLoading(true);
+    setError('');
     try {
       const formData = new FormData();
       if (caption.trim()) formData.append('caption', caption);
-      if (image) formData.append('image', image);
+      if (image) {
+        const optimizedImage = await optimizeImageForUpload(image, { maxDimension: 2048, quality: 0.88 });
+        formData.append('image', optimizedImage);
+      }
 
       // POST to /api/posts/ to create a post
       const response = await api.post('posts/', formData, {
@@ -60,9 +67,21 @@ const CreatePost = ({ onPostCreated }) => {
       if (onPostCreated) {
         onPostCreated(response.data);
       }
-    } catch (error) {
-      console.error('Error creating post', error);
-      alert('Failed to create post. Please try again.');
+    } catch (err) {
+      console.error('Error creating post', err);
+      let errMsg = 'Failed to create post. Please try again.';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          errMsg = err.response.data;
+        } else if (err.response.data.image) {
+          errMsg = Array.isArray(err.response.data.image) ? err.response.data.image[0] : err.response.data.image;
+        } else if (err.response.data.caption) {
+          errMsg = Array.isArray(err.response.data.caption) ? err.response.data.caption[0] : err.response.data.caption;
+        } else if (err.response.data.detail) {
+          errMsg = err.response.data.detail;
+        }
+      }
+      setError(errMsg);
     } finally {
       setLoading(false);
     }
@@ -71,6 +90,11 @@ const CreatePost = ({ onPostCreated }) => {
   return (
     <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 p-4 mb-6 transition-colors">
       <form onSubmit={handleSubmit}>
+        {error && (
+          <div className="mb-3 p-3 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-lg text-sm border border-red-200 dark:border-red-900/50">
+            {error}
+          </div>
+        )}
         <textarea
           value={caption}
           onChange={(e) => setCaption(e.target.value)}

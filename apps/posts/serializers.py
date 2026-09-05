@@ -23,14 +23,29 @@ class LikeSerializer(serializers.ModelSerializer):
 class PostSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source = "user.username",read_only=True) # this source is finding user.username inside post model
     profile_image = serializers.ImageField(source = "user.profile.profile_image", read_only = True)
+    thumbnail = serializers.SerializerMethodField()
     like_count = serializers.SerializerMethodField() # "This field does not come directly from the model. Instead, call a method to compute its value."
     is_liked = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
     # comments = CommentSerializer(many=True, read_only=True) # for displaying comments inside post serializer
     class Meta:
         model = Post
-        fields = ['id','username','profile_image','caption','image','like_count','is_liked','comment_count','created_at','updated_at']
+        fields = ['id','username','profile_image','caption','image','thumbnail','like_count','is_liked','comment_count','created_at','updated_at']
     
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_thumbnail(self, obj):
+        target = obj.thumbnail or obj.image
+        if not target:
+            return None
+        request = self.context.get("request")
+        try:
+            url = target.url
+            if request is not None:
+                return request.build_absolute_uri(url)
+            return url
+        except Exception:
+            return None
+
     @extend_schema_field(serializers.IntegerField())
     def get_like_count(self, obj): # So DRF will look for a function named: get_<field_name>
         return obj.likes.count()  # obj is simply the current Post object.
