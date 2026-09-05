@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import (logout_user,
                     toggle_follow, following_list, follower_list,
+                    remove_follower,
                     global_search, feed, ProfileDetailUpdateView,
                     ProfileListView, UserDetailCreateUpdateDeleteView,
                     accept_follow_request, reject_follow_request,
@@ -22,6 +23,8 @@ urlpatterns = [
     # Follow system --> 
     
     path("users/<int:user_id>/follow/", toggle_follow),
+    path("users/<int:user_id>/remove-follower/", remove_follower),
+    path("users/remove-follower/", remove_follower),
     path("users/<int:user_id>/following/", following_list),
     path("users/<int:user_id>/follower/", follower_list),
     path("follow-requests/<int:request_id>/accept/", accept_follow_request),

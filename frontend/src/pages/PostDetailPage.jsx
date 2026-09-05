@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, ArrowLeft, Trash2 } from 'lucide-react';
+import { Heart, MessageCircle, ArrowLeft, Trash2, Pencil, Bookmark } from 'lucide-react';
 import api from '../api/axiosInstance';
 import { AuthContext } from '../context/AuthContext';
 import CommentForm from '../components/comments/CommentForm';
 import CommentList from '../components/comments/CommentList';
 import { getImageUrl } from '../utils/imageUrl';
 import ConfirmModal from '../components/common/ConfirmModal';
+import EditPostModal from '../components/posts/EditPostModal';
+import PostImageCarousel from '../components/posts/PostImageCarousel';
 
 const PostDetailPage = () => {
   const { id } = useParams();
@@ -17,6 +19,7 @@ const PostDetailPage = () => {
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [confirmModal, setConfirmModal] = useState(null); // { type: 'post' } | { type: 'comment', commentId: number } | null
+  const [showEditPostModal, setShowEditPostModal] = useState(false);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -74,6 +77,31 @@ const PostDetailPage = () => {
     }
   };
 
+  const handleSaveToggle = async () => {
+    if (!post) return;
+    const previousSaved = !!post.is_saved;
+    const nextSaved = !previousSaved;
+    setPost(prev => ({
+      ...prev,
+      is_saved: nextSaved,
+    }));
+    try {
+      const response = await api.post(`posts/${id}/save/`);
+      if (typeof response.data?.is_saved === 'boolean') {
+        setPost(prev => ({
+          ...prev,
+          is_saved: response.data.is_saved,
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to toggle save post', error);
+      setPost(prev => ({
+        ...prev,
+        is_saved: previousSaved,
+      }));
+    }
+  };
+
   const handleDeletePost = async () => {
     try {
       await api.delete(`posts/${id}/`);
@@ -99,6 +127,18 @@ const PostDetailPage = () => {
       console.error('Failed to delete comment', error);
     } finally {
       setConfirmModal(null);
+    }
+  };
+
+  const handleCommentEdit = async (commentId, newText) => {
+    try {
+      const response = await api.patch(`posts/${id}/comments/${commentId}/`, { text: newText });
+      setComments(prev =>
+        prev.map(c => (c.id === commentId ? { ...c, text: response.data.text } : c))
+      );
+    } catch (error) {
+      console.error('Failed to update comment', error);
+      throw error;
     }
   };
 
@@ -151,24 +191,29 @@ const PostDetailPage = () => {
             </div>
           </Link>
 
-          {/* Delete button (only post owner) */}
+          {/* Actions for post owner (edit & delete) */}
           {user && user.username === post.username && (
-            <button
-              onClick={() => setConfirmModal({ type: 'post' })}
-              className="text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors p-2"
-              title="Delete post"
-            >
-              <Trash2 className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setShowEditPostModal(true)}
+                className="text-gray-400 dark:text-slate-500 hover:text-brand-blue dark:hover:text-brand-teal transition-colors p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800"
+                title="Edit post"
+              >
+                <Pencil className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setConfirmModal({ type: 'post' })}
+                className="text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800"
+                title="Delete post"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            </div>
           )}
         </div>
 
-        {/* Image */}
-        {post.image && (
-          <div className="w-full bg-gray-50 dark:bg-slate-950 flex justify-center">
-            <img src={post.image} alt="Post" className="max-h-[600px] w-full object-cover" />
-          </div>
-        )}
+        {/* Image / Carousel */}
+        <PostImageCarousel post={post} linkToDetail={false} />
 
         {/* Caption */}
         {post.caption && (
@@ -181,31 +226,60 @@ const PostDetailPage = () => {
         )}
 
         {/* Actions */}
-        <div className="px-4 py-3 flex items-center gap-6 border-t border-gray-100 dark:border-slate-800">
-          <button
-            onClick={handleLikeToggle}
-            className={`flex items-center gap-2 group transition-colors ${
-              post.is_liked ? 'text-red-500' : 'text-gray-500 dark:text-slate-400 hover:text-red-500'
-            }`}
-          >
-            <Heart
-              className={`w-7 h-7 transition-transform group-hover:scale-110 ${post.is_liked ? 'fill-current' : ''}`}
-            />
-            <span className="font-semibold text-sm">{post.like_count} likes</span>
-          </button>
+        <div className="px-4 py-3 flex items-center justify-between border-t border-gray-100 dark:border-slate-800">
+          <div className="flex items-center gap-6">
+            <button
+              onClick={handleLikeToggle}
+              className={`flex items-center gap-2 group transition-colors cursor-pointer ${
+                post.is_liked ? 'text-red-500' : 'text-gray-500 dark:text-slate-400 hover:text-red-500'
+              }`}
+            >
+              <Heart
+                className={`w-7 h-7 transition-transform group-hover:scale-110 ${post.is_liked ? 'fill-current' : ''}`}
+              />
+              <span className="font-semibold text-sm">{post.like_count} likes</span>
+            </button>
 
-          <div className="flex items-center gap-2 text-gray-500 dark:text-slate-400">
-            <MessageCircle className="w-6 h-6" />
-            <span className="font-semibold text-sm">{post.comment_count} comments</span>
+            <div className="flex items-center gap-2 text-gray-500 dark:text-slate-400">
+              <MessageCircle className="w-6 h-6" />
+              <span className="font-semibold text-sm">{post.comment_count} comments</span>
+            </div>
           </div>
+
+          {/* Bookmark / Save Button */}
+          <button
+            onClick={handleSaveToggle}
+            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+              post.is_saved
+                ? 'text-brand-purple dark:text-brand-teal hover:bg-brand-purple/10 dark:hover:bg-brand-teal/10'
+                : 'text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800'
+            }`}
+            title={post.is_saved ? 'Unsave post' : 'Save post'}
+            aria-label={post.is_saved ? 'Unsave post' : 'Save post'}
+          >
+            <Bookmark className={`w-7 h-7 transition-transform hover:scale-110 ${post.is_saved ? 'fill-current' : ''}`} />
+          </button>
         </div>
 
         {/* Comment Section */}
         <div className="px-4 pb-6 border-t border-gray-100 dark:border-slate-800 pt-4">
-          <CommentList comments={comments} onDelete={(commentId) => setConfirmModal({ type: 'comment', commentId })} />
+          <CommentList
+            comments={comments}
+            onEdit={handleCommentEdit}
+            onDelete={(commentId) => setConfirmModal({ type: 'comment', commentId })}
+          />
           <CommentForm postId={id} onCommentAdded={handleCommentAdded} />
         </div>
       </div>
+
+      {/* Edit Post Modal */}
+      {showEditPostModal && (
+        <EditPostModal
+          post={post}
+          onClose={() => setShowEditPostModal(false)}
+          onUpdated={(updatedPost) => setPost(prev => ({ ...prev, ...updatedPost }))}
+        />
+      )}
 
       {/* Confirm Delete Modal */}
       {confirmModal && (

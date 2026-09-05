@@ -19,6 +19,20 @@ class Post(models.Model):
     def __str__(self):
         return f"{self.user.username} - Post {self.id}"
 
+
+class PostImage(models.Model):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="images")
+    image = models.ImageField(upload_to="posts/")
+    thumbnail = models.ImageField(upload_to="posts/thumbnails/", blank=True, null=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "created_at"]
+
+    def __str__(self):
+        return f"Post {self.post_id} Image {self.id}"
+
 class Like(models.Model):
     
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -45,3 +59,19 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"Comment {self.id}"
+
+
+class SavedPost(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="saved_posts")
+    post = models.ForeignKey("posts.Post", on_delete=models.CASCADE, related_name="saved_by")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "post"], name="unique_user_post_save")
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} saved post {self.post_id}"
+

@@ -5,7 +5,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .serializers import PostSerializer, CommentSerializer
-from .models import Post, Like, Comment
+from .models import Post, Like, Comment, PostImage, SavedPost
 from rest_framework.pagination import PageNumberPagination
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
@@ -34,18 +34,22 @@ class PostListCreateView(APIView):
     
     @extend_schema(request=PostSerializer)
     def post(self, request):  # create post
-        raw_image = request.FILES.get("image")
-        if not raw_image and hasattr(request.data, "get"):
+        raw_images = request.FILES.getlist("images")
+        if not raw_images:
+            single = request.FILES.get("image")
+            if single:
+                raw_images = [single]
+        if not raw_images and hasattr(request.data, "get"):
             candidate = request.data.get("image")
             if hasattr(candidate, "read"):
-                raw_image = candidate
+                raw_images = [candidate]
 
-        optimized_image = None
-        thumbnail_image = None
-
-        if raw_image:
+        processed_images = []
+        if raw_images:
             try:
-                optimized_image, thumbnail_image = optimize_post_image(raw_image)
+                for r_img in raw_images:
+                    opt_main, opt_thumb = optimize_post_image(r_img)
+                    processed_images.append((opt_main, opt_thumb))
             except DRFValidationError as e:
                 return Response({"image": e.detail}, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
@@ -54,16 +58,33 @@ class PostListCreateView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        caption = request.data.get("caption", "")
+        caption_str = caption.strip() if hasattr(caption, "strip") else (str(caption).strip() if caption is not None else "")
+        if not processed_images and not caption_str:
+            return Response(
+                {"detail": "A post or tweet must contain either text or an image."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         serializer = PostSerializer(data=request.data, context={"request": request})
 
         if serializer.is_valid():
             save_kwargs = {"user": request.user}
-            if optimized_image:
-                save_kwargs["image"] = optimized_image
-            if thumbnail_image:
-                save_kwargs["thumbnail"] = thumbnail_image
+            if processed_images:
+                save_kwargs["image"] = processed_images[0][0]
+                save_kwargs["thumbnail"] = processed_images[0][1]
 
             post = serializer.save(**save_kwargs)
+
+            if processed_images:
+                for idx, (opt_main, opt_thumb) in enumerate(processed_images):
+                    PostImage.objects.create(
+                        post=post,
+                        image=opt_main,
+                        thumbnail=opt_thumb,
+                        order=idx,
+                    )
+
             invalidate_post_caches(post.id, post.user_id)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
@@ -74,12 +95,14 @@ class PostListCreateView(APIView):
             OpenApiParameter(name="page", description="Page number", required=False, type=OpenApiTypes.INT),
             OpenApiParameter(name="username", description="Filter posts by author username", required=False, type=OpenApiTypes.STR),
             OpenApiParameter(name="user_id", description="Filter posts by author user ID", required=False, type=OpenApiTypes.INT),
+            OpenApiParameter(name="type", description="Filter posts by type: 'posts' (image posts) or 'tweets' (text-only)", required=False, type=OpenApiTypes.STR),
         ]
     )
     def get(self, request):
         page = request.query_params.get("page", 1)
         username = request.query_params.get("username")
         user_id = request.query_params.get("user_id")
+        post_type = request.query_params.get("type")
 
         if username:
             target_user = get_object_or_404(User, username=username)
@@ -88,16 +111,29 @@ class PostListCreateView(APIView):
         else:
             target_user = None
 
-        if target_user:
+        type_suffix = f"_{post_type}" if post_type else ""
+
+        if post_type == "saved":
+            if not request.user.is_authenticated:
+                return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+            if target_user and target_user != request.user:
+                return Response({"detail": "You cannot view another user's saved posts."}, status=status.HTTP_403_FORBIDDEN)
+            cache_key = f"post_list_saved_{request.user.id}_page_{page}"
+            queryset = Post.objects.filter(saved_by__user=request.user).filter(
+                Q(user=request.user)
+                | Q(user__profile__is_private=False)
+                | Q(user__followers__follower=request.user)
+            ).order_by("-saved_by__created_at").distinct()
+        elif target_user:
             if not can_view_user_content(request.user, target_user):
                 return Response({"detail": "This account is private."}, status=status.HTTP_403_FORBIDDEN)
             if target_user == request.user:
-                cache_key = f"post_list_{target_user.id}_page_{page}"
+                cache_key = f"post_list_{target_user.id}{type_suffix}_page_{page}"
             else:
-                cache_key = f"post_list_{target_user.id}_viewer_{request.user.id}_page_{page}"
+                cache_key = f"post_list_{target_user.id}_viewer_{request.user.id}{type_suffix}_page_{page}"
             queryset = Post.objects.filter(user=target_user).order_by("-created_at")
         else:
-            cache_key = f"post_list_all_viewer_{request.user.id}_page_{page}"
+            cache_key = f"post_list_all_viewer_{request.user.id}{type_suffix}_page_{page}"
             if request.user.is_authenticated:
                 queryset = Post.objects.filter(
                     Q(user__profile__is_private=False)
@@ -106,6 +142,15 @@ class PostListCreateView(APIView):
                 ).distinct().order_by("-created_at")
             else:
                 queryset = Post.objects.filter(user__profile__is_private=False).order_by("-created_at")
+
+        if post_type in ["posts", "images"]:
+            queryset = queryset.filter(
+                (Q(image__isnull=False) & ~Q(image="")) | Q(images__isnull=False)
+            ).distinct()
+        elif post_type in ["tweets", "text"]:
+            queryset = queryset.filter(
+                (Q(image__isnull=True) | Q(image="")) & Q(images__isnull=True)
+            ).distinct()
 
         cached_postList = cache.get(cache_key)
         if cached_postList is not None:
@@ -242,6 +287,61 @@ def toggle_like(request, post_id):
         invalidate_post_caches(post.id, post.user_id)
         return Response({"message":"Post liked"}, status=status.HTTP_201_CREATED)
     
+
+# ------Save / Bookmark Toggle ------
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def toggle_save(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    if not can_view_user_content(request.user, post.user):
+        return Response({"detail": "This account is private."}, status=status.HTTP_403_FORBIDDEN)
+
+    saved_post = SavedPost.objects.filter(user=request.user, post=post).first()
+    if saved_post is not None:
+        saved_post.delete()
+        cache.delete(post_detail_cache_key(post.id, request.user.id))
+        cache.delete_pattern(f"post_list_saved_{request.user.id}_*")
+        return Response({"message": "Post unsaved", "is_saved": False}, status=status.HTTP_200_OK)
+    else:
+        SavedPost.objects.get_or_create(user=request.user, post=post)
+        cache.delete(post_detail_cache_key(post.id, request.user.id))
+        cache.delete_pattern(f"post_list_saved_{request.user.id}_*")
+        return Response({"message": "Post saved", "is_saved": True}, status=status.HTTP_201_CREATED)
+
+
+class SavedPostListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name="page", description="Page number", required=False, type=OpenApiTypes.INT),
+        ]
+    )
+    def get(self, request):
+        page = request.query_params.get("page", 1)
+        cache_key = f"post_list_saved_{request.user.id}_page_{page}"
+        cached_saved = cache.get(cache_key)
+        if cached_saved is not None:
+            return Response(cached_saved)
+
+        queryset = Post.objects.filter(saved_by__user=request.user).filter(
+            Q(user=request.user)
+            | Q(user__profile__is_private=False)
+            | Q(user__followers__follower=request.user)
+        ).order_by("-saved_by__created_at").distinct()
+
+        posts = with_post_request_state(queryset, request.user)
+        paginator = PageNumberPagination()
+        paginator.page_size = 5
+        paginator.max_page_size = 10
+        result_page = paginator.paginate_queryset(queryset=posts, request=request)
+        serializer = PostSerializer(instance=result_page, many=True, context={"request": request})
+        response = paginator.get_paginated_response(serializer.data)
+        cache.set(cache_key, response.data, timeout=CACHE_TIMEOUT)
+        return response
+
+
 # ------Comment Section------
 
 class CommentListCreateView(APIView):

@@ -4,15 +4,40 @@ import { Link } from 'react-router-dom';
 import api from '../../api/axiosInstance';
 import { getImageUrl } from '../../utils/imageUrl';
 
-const FollowListModal = ({ userId, type, onClose }) => {
+const FollowListModal = ({ userId, type, onClose, isOwnProfile = false, onFollowerRemoved }) => {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [removingId, setRemovingId] = useState(null);
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const [error, setError] = useState(null);
 
   const title = type === 'followers' ? 'Followers' : 'Following';
+
+  const handleRemove = async (item) => {
+    const targetKey = item.user_id || item.id;
+    setRemovingId(targetKey);
+    try {
+      if (item.user_id) {
+        await api.post(`users/${item.user_id}/remove-follower/`);
+      } else {
+        await api.post(`users/remove-follower/`, { username: item.follower });
+      }
+
+      // Remove from list immediately
+      setList(prev => prev.filter(f => f.id !== item.id && (f.user_id ? f.user_id !== targetKey : f.follower !== item.follower)));
+
+      if (onFollowerRemoved) {
+        onFollowerRemoved(targetKey);
+      }
+    } catch (err) {
+      console.error('Failed to remove follower', err);
+      alert('Failed to remove follower. Please try again.');
+    } finally {
+      setRemovingId(null);
+    }
+  };
 
   useEffect(() => {
     if (!userId) {
@@ -87,26 +112,49 @@ const FollowListModal = ({ userId, type, onClose }) => {
             <div className="pb-4">
               {list.map((item) => {
                 const username = type === 'followers' ? item.follower : item.following;
+                const targetKey = item.user_id || item.id;
                 return (
-                  <Link
-                    key={item.id}
-                    to={`/profile/${username}`}
-                    onClick={onClose}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors"
+                  <div
+                    key={item.id || targetKey}
+                    className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors"
                   >
-                    {item.profile_image ? (
-                      <img
-                        src={getImageUrl(item.profile_image)}
-                        alt={`${username}'s avatar`}
-                        className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-slate-700"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-brand-purple/10 dark:bg-brand-purple/20 flex items-center justify-center text-brand-purple dark:text-brand-teal font-bold">
-                        {username?.charAt(0).toUpperCase()}
+                    <Link
+                      to={`/profile/${username}`}
+                      onClick={onClose}
+                      className="flex items-center gap-3 flex-1 min-w-0 mr-3"
+                    >
+                      {item.profile_image ? (
+                        <img
+                          src={getImageUrl(item.profile_image)}
+                          alt={`${username}'s avatar`}
+                          className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-slate-700 flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-brand-purple/10 dark:bg-brand-purple/20 flex items-center justify-center text-brand-purple dark:text-brand-teal font-bold flex-shrink-0">
+                          {username?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-gray-900 dark:text-slate-100 truncate">{username}</div>
+                        {item.full_name && (
+                          <div className="text-xs text-gray-500 dark:text-slate-400 truncate">{item.full_name}</div>
+                        )}
                       </div>
+                    </Link>
+
+                    {isOwnProfile && type === 'followers' && (
+                      <button
+                        type="button"
+                        disabled={removingId === targetKey}
+                        onClick={() => handleRemove(item)}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400 border border-gray-200 dark:border-slate-700 transition-colors cursor-pointer disabled:opacity-50 flex-shrink-0"
+                        title={`Remove ${username} from your followers`}
+                        aria-label={`Remove ${username} from your followers`}
+                      >
+                        {removingId === targetKey ? 'Removing...' : 'Remove'}
+                      </button>
                     )}
-                    <span className="font-medium text-gray-900 dark:text-slate-100">{username}</span>
-                  </Link>
+                  </div>
                 );
               })}
               

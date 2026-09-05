@@ -1,11 +1,14 @@
-import React, { useContext } from 'react';
-import { Trash2 } from 'lucide-react';
+import React, { useState, useContext } from 'react';
+import { Trash2, Pencil } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
 import { getImageUrl } from '../../utils/imageUrl';
 
-const CommentList = ({ comments, onDelete }) => {
+const CommentList = ({ comments, onEdit, onDelete }) => {
   const { user } = useContext(AuthContext);
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [savingId, setSavingId] = useState(null);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -14,6 +17,30 @@ const CommentList = ({ comments, onDelete }) => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleStartEdit = (comment) => {
+    setEditingId(comment.id);
+    setEditText(comment.text);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditText('');
+  };
+
+  const handleSaveEdit = async (commentId) => {
+    if (!editText.trim() || !onEdit) return;
+    setSavingId(commentId);
+    try {
+      await onEdit(commentId, editText.trim());
+      setEditingId(null);
+      setEditText('');
+    } catch (err) {
+      console.error('Failed to save comment edit', err);
+    } finally {
+      setSavingId(null);
+    }
   };
 
   if (!comments || comments.length === 0) {
@@ -45,7 +72,7 @@ const CommentList = ({ comments, onDelete }) => {
           </Link>
           
           {/* Comment Content */}
-          <div className="flex-1 bg-gray-50 dark:bg-slate-800/70 rounded-2xl px-4 py-2 border border-transparent dark:border-slate-800">
+          <div className="flex-1 bg-gray-50 dark:bg-slate-800/70 rounded-2xl px-4 py-2.5 border border-transparent dark:border-slate-800">
             <div className="flex justify-between items-start">
               <div>
                 <Link to={`/profile/${comment.username}`} className="font-semibold text-gray-900 dark:text-slate-100 text-sm hover:underline">
@@ -54,18 +81,58 @@ const CommentList = ({ comments, onDelete }) => {
                 <span className="text-xs text-gray-500 dark:text-slate-400 ml-2">{formatDate(comment.created_at)}</span>
               </div>
               
-              {/* Delete Button (Only if user owns the comment) */}
-              {user && user.username === comment.username && (
-                <button
-                  onClick={() => onDelete(comment.id)}
-                  className="text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                  title="Delete comment"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+              {/* Action Buttons (Edit & Delete for comment owner) */}
+              {user && user.username === comment.username && editingId !== comment.id && (
+                <div className="flex items-center gap-1.5 ml-2">
+                  <button
+                    onClick={() => handleStartEdit(comment)}
+                    className="text-gray-400 dark:text-slate-500 hover:text-brand-blue dark:hover:text-brand-teal transition-colors p-1"
+                    title="Edit comment"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => onDelete(comment.id)}
+                    className="text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1"
+                    title="Delete comment"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               )}
             </div>
-            <p className="text-gray-800 dark:text-slate-200 text-sm mt-1 whitespace-pre-wrap">{comment.text}</p>
+
+            {/* Comment Body or Inline Editor */}
+            {editingId === comment.id ? (
+              <div className="mt-2 space-y-2">
+                <textarea
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  className="w-full text-sm p-2 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 focus:outline-none focus:border-brand-blue dark:focus:border-brand-teal resize-none"
+                  rows={2}
+                  autoFocus
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="px-2.5 py-1 text-xs font-medium rounded-md text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!editText.trim() || savingId === comment.id}
+                    onClick={() => handleSaveEdit(comment.id)}
+                    className="px-2.5 py-1 text-xs font-medium rounded-md text-white bg-gradient-to-r from-brand-purple to-brand-teal hover:opacity-90 disabled:opacity-50 transition-colors"
+                  >
+                    {savingId === comment.id ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-800 dark:text-slate-200 text-sm mt-1 whitespace-pre-wrap">{comment.text}</p>
+            )}
           </div>
         </div>
       ))}

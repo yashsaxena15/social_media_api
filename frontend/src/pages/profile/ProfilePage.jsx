@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { UserCheck, UserPlus, Grid, PlusSquare, Lock, Clock } from 'lucide-react';
+import { UserCheck, UserPlus, Grid, Lock, Clock, Plus, MessageSquare, ImagePlus, Bookmark } from 'lucide-react';
 import api from '../../api/axiosInstance';
 import { AuthContext } from '../../context/AuthContext';
 import PostCard from '../../components/posts/PostCard';
@@ -16,13 +16,71 @@ const ProfilePage = () => {
   const isOwnProfile = username === currentUser?.username;
 
   const [profile, setProfile] = useState(null);       // profile data (includes user_id)
-  const [posts, setPosts] = useState([]);
+  const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'tweets' | 'saved'
   const [isFollowing, setIsFollowing] = useState(false);
   const [isRequested, setIsRequested] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
   const [followModal, setFollowModal] = useState(null); // 'followers' | 'following' | null
-  const [showCreatePost, setShowCreatePost] = useState(false);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
+  const [composerMode, setComposerMode] = useState(null); // 'post' | 'tweet' | null
+
+  // Independent state for posts, tweets, and saved tabs
+  const [tabData, setTabData] = useState({
+    posts: {
+      items: [],
+      page: 1,
+      hasMore: true,
+      loading: false,
+      loadingMore: false,
+      initialLoaded: false,
+    },
+    tweets: {
+      items: [],
+      page: 1,
+      hasMore: true,
+      loading: false,
+      loadingMore: false,
+      initialLoaded: false,
+    },
+    saved: {
+      items: [],
+      page: 1,
+      hasMore: true,
+      loading: false,
+      loadingMore: false,
+      initialLoaded: false,
+    },
+  });
+
+  const tabDataRef = useRef(tabData);
+  tabDataRef.current = tabData;
+
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  const usernameRef = useRef(username);
+  usernameRef.current = username;
+
+  const createMenuRef = useRef(null);
+  const sentinelRef = useRef(null);
+
+  // Click outside to close create menu
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (createMenuRef.current && !createMenuRef.current.contains(event.target)) {
+        setShowCreateMenu(false);
+      }
+    };
+    if (showCreateMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showCreateMenu]);
 
   // Fetch profile by exact username
   const fetchProfile = async () => {
@@ -40,33 +98,140 @@ const ProfilePage = () => {
     }
   };
 
-  // Fetch posts for this user
-  const fetchUserPosts = async () => {
+  // Fetch posts for this user filtered by content type ('posts' or 'tweets') with pagination
+  const fetchTabPosts = async (tab, pageNum = 1, isLoadMore = false) => {
+    const currentState = tabDataRef.current[tab];
+    if (isLoadMore && (currentState.loadingMore || !currentState.hasMore)) {
+      return;
+    }
+    if (!isLoadMore && currentState.loading) {
+      return;
+    }
+
+    setTabData(prev => ({
+      ...prev,
+      [tab]: {
+        ...prev[tab],
+        loading: !isLoadMore,
+        loadingMore: isLoadMore,
+      },
+    }));
+
     try {
-      const res = await api.get(`posts/?username=${encodeURIComponent(username)}`);
-      const allPosts = res.data.results ? res.data.results : res.data;
-      setPosts(Array.isArray(allPosts) ? allPosts : []);
+      const res = await api.get(`posts/?username=${encodeURIComponent(usernameRef.current)}&type=${tab}&page=${pageNum}`);
+      if (usernameRef.current !== username) return;
+
+      const data = res.data;
+      const newItems = data.results ? data.results : (Array.isArray(data) ? data : []);
+      const hasMore = Boolean(data.next);
+
+      setTabData(prev => {
+        const existingItems = isLoadMore ? prev[tab].items : [];
+        const existingIds = new Set(existingItems.map(p => p.id));
+        const filteredNew = newItems.filter(p => !existingIds.has(p.id));
+        const combinedItems = isLoadMore ? [...existingItems, ...filteredNew] : newItems;
+
+        return {
+          ...prev,
+          [tab]: {
+            ...prev[tab],
+            items: combinedItems,
+            page: pageNum,
+            hasMore: hasMore,
+            loading: false,
+            loadingMore: false,
+            initialLoaded: true,
+          },
+        };
+      });
     } catch (err) {
-      console.error('Failed to fetch posts', err);
-      setPosts([]);
+      console.error(`Failed to fetch ${tab} page ${pageNum}`, err);
+      setTabData(prev => ({
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          loading: false,
+          loadingMore: false,
+          hasMore: false,
+          initialLoaded: true,
+        },
+      }));
     }
   };
 
+  // Initial load when username changes
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setProfile(null);
-      setPosts([]);
+      setActiveTab('posts');
+      setTabData({
+        posts: { items: [], page: 1, hasMore: true, loading: false, loadingMore: false, initialLoaded: false },
+        tweets: { items: [], page: 1, hasMore: true, loading: false, loadingMore: false, initialLoaded: false },
+        saved: { items: [], page: 1, hasMore: true, loading: false, loadingMore: false, initialLoaded: false },
+      });
       setIsFollowing(false);
       setIsRequested(false);
       const data = await fetchProfile();
       if (data && (isOwnProfile || !data.is_private || data.can_view_content || data.is_following)) {
-        await fetchUserPosts();
+        await fetchTabPosts('posts', 1, false);
       }
       setLoading(false);
     };
     if (username) load();
   }, [username, isOwnProfile]);
+
+  // Instagram-style infinite scroll observer and scroll listener
+  useEffect(() => {
+    const checkAndFetchMore = () => {
+      const currentTab = activeTabRef.current;
+      const current = tabDataRef.current[currentTab];
+      if (
+        current.initialLoaded &&
+        current.hasMore &&
+        !current.loading &&
+        !current.loadingMore
+      ) {
+        fetchTabPosts(currentTab, current.page + 1, true);
+      }
+    };
+
+    const sentinel = sentinelRef.current;
+    let observer = null;
+    if (sentinel) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          const first = entries[0];
+          if (first.isIntersecting) {
+            checkAndFetchMore();
+          }
+        },
+        {
+          root: null,
+          rootMargin: '200px 0px',
+          threshold: 0,
+        }
+      );
+      observer.observe(sentinel);
+    }
+
+    const handleScroll = () => {
+      const scrollHeight = document.documentElement.scrollHeight;
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const clientHeight = window.innerHeight || document.documentElement.clientHeight;
+
+      if (scrollTop + clientHeight >= scrollHeight - 200) {
+        checkAndFetchMore();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      if (observer) observer.disconnect();
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [activeTab, tabData[activeTab]?.items?.length, tabData[activeTab]?.loadingMore]);
 
   const handleFollowToggle = async () => {
     if (!profile?.user_id) return;
@@ -81,7 +246,7 @@ const ProfilePage = () => {
           followers_count: prev.followers_count + 1,
           can_view_content: true,
         } : prev);
-        fetchUserPosts();
+        fetchTabPosts(activeTab, 1, false);
       } else if (status === 'requested') {
         setIsFollowing(false);
         setIsRequested(true);
@@ -96,7 +261,11 @@ const ProfilePage = () => {
             can_view_content: !prev.is_private,
           } : prev);
           if (profile.is_private) {
-            setPosts([]);
+            setTabData({
+              posts: { items: [], page: 1, hasMore: true, loading: false, loadingMore: false, initialLoaded: false },
+              tweets: { items: [], page: 1, hasMore: true, loading: false, loadingMore: false, initialLoaded: false },
+              saved: { items: [], page: 1, hasMore: true, loading: false, loadingMore: false, initialLoaded: false },
+            });
           }
         }
       }
@@ -106,23 +275,107 @@ const ProfilePage = () => {
   };
 
   const handleLikeToggle = async (postId) => {
-    setPosts(current =>
-      current.map(p => p.id === postId
+    const updateList = (list) =>
+      list.map(p => p.id === postId
         ? { ...p, is_liked: !p.is_liked, like_count: p.is_liked ? p.like_count - 1 : p.like_count + 1 }
         : p
-      )
-    );
+      );
+
+    setTabData(prev => ({
+      ...prev,
+      posts: { ...prev.posts, items: updateList(prev.posts.items) },
+      tweets: { ...prev.tweets, items: updateList(prev.tweets.items) },
+      saved: { ...prev.saved, items: updateList(prev.saved.items) },
+    }));
+
     try {
       await api.post(`posts/${postId}/like/`);
     } catch {
-      setPosts(current =>
-        current.map(p => p.id === postId
-          ? { ...p, is_liked: !p.is_liked, like_count: p.is_liked ? p.like_count - 1 : p.like_count + 1 }
-          : p
-        )
-      );
+      setTabData(prev => ({
+        ...prev,
+        posts: { ...prev.posts, items: updateList(prev.posts.items) },
+        tweets: { ...prev.tweets, items: updateList(prev.tweets.items) },
+        saved: { ...prev.saved, items: updateList(prev.saved.items) },
+      }));
     }
   };
+
+  const handleSaveToggle = (postId, isSaved) => {
+    setTabData(prev => {
+      const updateList = (items) =>
+        items.map(p => (p.id === postId ? { ...p, is_saved: isSaved } : p));
+
+      const savedItems = !isSaved
+        ? prev.saved.items.filter(p => p.id !== postId)
+        : updateList(prev.saved.items);
+
+      return {
+        ...prev,
+        posts: { ...prev.posts, items: updateList(prev.posts.items) },
+        tweets: { ...prev.tweets, items: updateList(prev.tweets.items) },
+        saved: { ...prev.saved, items: savedItems },
+      };
+    });
+  };
+
+  const handleTabChange = (newTab) => {
+    if (newTab === activeTab) return;
+    setActiveTab(newTab);
+    if (!tabDataRef.current[newTab].initialLoaded) {
+      fetchTabPosts(newTab, 1, false);
+    }
+  };
+
+  const handleSelectCreate = (mode) => {
+    setShowCreateMenu(false);
+    setComposerMode(mode);
+  };
+
+  const handlePostCreated = (newPost) => {
+    const hasImage = Boolean(newPost.image || (newPost.images && newPost.images.length > 0));
+    const targetTab = hasImage ? 'posts' : 'tweets';
+
+    setActiveTab(targetTab);
+
+    setTabData(prev => {
+      const targetState = prev[targetTab];
+      return {
+        ...prev,
+        [targetTab]: {
+          ...targetState,
+          items: [newPost, ...targetState.items.filter(p => p.id !== newPost.id)],
+          initialLoaded: true,
+        },
+      };
+    });
+
+    setProfile(prev => prev ? {
+      ...prev,
+      posts_count: (prev.posts_count || 0) + 1,
+    } : prev);
+
+    setComposerMode(null);
+  };
+
+  const handlePostUpdated = (updatedPost) => {
+    const updateList = (list) =>
+      list.map(p => p.id === updatedPost.id ? { ...p, ...updatedPost } : p);
+
+    setTabData(prev => ({
+      ...prev,
+      posts: { ...prev.posts, items: updateList(prev.posts.items) },
+      tweets: { ...prev.tweets, items: updateList(prev.tweets.items) },
+      saved: { ...prev.saved, items: updateList(prev.saved.items) },
+    }));
+  };
+
+  const currentTabState = tabData[activeTab];
+  const filteredPosts = activeTab === 'saved'
+    ? currentTabState.items
+    : currentTabState.items.filter(post => {
+        const hasImage = Boolean(post.image || (post.images && post.images.length > 0));
+        return activeTab === 'posts' ? hasImage : !hasImage;
+      });
 
   const handleProfileUpdated = (updatedProfile) => {
     setProfile(prev => ({ ...prev, ...updatedProfile }));
@@ -266,45 +519,168 @@ const ProfilePage = () => {
         </div>
       ) : (
         <>
-          {/* Posts Section */}
-          <div className="flex items-center justify-between mb-4 border-t border-gray-200 dark:border-slate-800 pt-4">
-            <div className="flex items-center gap-2 text-gray-600 dark:text-slate-400 font-medium">
-              <Grid className="w-4 h-4" />
-              <span>Posts</span>
+          {/* Profile Tabs + Unified Create (+) Button */}
+          <div className="border-t border-gray-200 dark:border-slate-800 mb-6">
+            <div className="flex items-center justify-between">
+              {/* Instagram-style Tabs Navigation */}
+              <div className="flex items-center gap-6 sm:gap-10">
+                <button
+                  type="button"
+                  onClick={() => handleTabChange('posts')}
+                  className={`flex items-center gap-2 py-3.5 px-2 -mt-px border-t-2 text-xs sm:text-sm font-semibold tracking-wider uppercase transition-colors cursor-pointer ${
+                    activeTab === 'posts'
+                      ? 'border-brand-purple dark:border-brand-teal text-brand-purple dark:text-brand-teal'
+                      : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Grid className="w-4 h-4" />
+                  <span>Posts</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleTabChange('tweets')}
+                  className={`flex items-center gap-2 py-3.5 px-2 -mt-px border-t-2 text-xs sm:text-sm font-semibold tracking-wider uppercase transition-colors cursor-pointer ${
+                    activeTab === 'tweets'
+                      ? 'border-brand-purple dark:border-brand-teal text-brand-purple dark:text-brand-teal'
+                      : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Tweets</span>
+                </button>
+
+                {isOwnProfile && (
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange('saved')}
+                    className={`flex items-center gap-2 py-3.5 px-2 -mt-px border-t-2 text-xs sm:text-sm font-semibold tracking-wider uppercase transition-colors cursor-pointer ${
+                      activeTab === 'saved'
+                        ? 'border-brand-purple dark:border-brand-teal text-brand-purple dark:text-brand-teal'
+                        : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <Bookmark className="w-4 h-4" />
+                    <span>Saved</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Unified Create (+) Button & Menu */}
+              {isOwnProfile && (
+                <div className="relative" ref={createMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (composerMode) {
+                        setComposerMode(null);
+                        setShowCreateMenu(false);
+                      } else {
+                        setShowCreateMenu(prev => !prev);
+                      }
+                    }}
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all shadow-xs cursor-pointer ${
+                      showCreateMenu || composerMode
+                        ? 'bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-slate-100 rotate-45'
+                        : 'bg-gradient-to-r from-brand-purple to-brand-teal text-white hover:opacity-90 hover:scale-105 active:scale-95'
+                    }`}
+                    title={showCreateMenu || composerMode ? 'Close' : 'Create new post or tweet'}
+                    aria-label={showCreateMenu || composerMode ? 'Close' : 'Create new post or tweet'}
+                  >
+                    <Plus className="w-5 h-5 transition-transform" />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {showCreateMenu && (
+                    <div className="absolute right-0 top-full mt-2 w-56 sm:w-64 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-200 dark:border-slate-700 p-1.5 z-30 transition-all animate-in fade-in zoom-in-95">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectCreate('post')}
+                        className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/60 transition-colors text-left group cursor-pointer"
+                      >
+                        <div className="w-9 h-9 rounded-lg bg-brand-purple/10 dark:bg-brand-purple/20 flex items-center justify-center text-brand-purple dark:text-brand-teal flex-shrink-0 group-hover:scale-105 transition-transform">
+                          <ImagePlus className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-gray-900 dark:text-slate-100 text-sm">Create Post</div>
+                          <div className="text-xs text-gray-500 dark:text-slate-400">Image + caption</div>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSelectCreate('tweet')}
+                        className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/60 transition-colors text-left group cursor-pointer mt-1"
+                      >
+                        <div className="w-9 h-9 rounded-lg bg-brand-purple/10 dark:bg-brand-purple/20 flex items-center justify-center text-brand-purple dark:text-brand-teal flex-shrink-0 group-hover:scale-105 transition-transform">
+                          <MessageSquare className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-gray-900 dark:text-slate-100 text-sm">Create Tweet</div>
+                          <div className="text-xs text-gray-500 dark:text-slate-400">Text only</div>
+                        </div>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            {isOwnProfile && (
-              <button
-                onClick={() => setShowCreatePost(prev => !prev)}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  showCreatePost
-                    ? 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
-                    : 'bg-gradient-to-r from-brand-purple to-brand-teal text-white hover:opacity-90'
-                }`}
-              >
-                <PlusSquare className="w-4 h-4" />
-                {showCreatePost ? 'Cancel' : 'New Post'}
-              </button>
-            )}
           </div>
 
-          {/* Create Post Form (collapsible) */}
-          {isOwnProfile && showCreatePost && (
+          {/* Create Post / Tweet Form */}
+          {isOwnProfile && composerMode && (
             <CreatePost
-              onPostCreated={(newPost) => {
-                setPosts(prev => [newPost, ...prev]);
-                setShowCreatePost(false);
-              }}
+              mode={composerMode}
+              onClose={() => setComposerMode(null)}
+              onPostCreated={handlePostCreated}
             />
           )}
 
-          {posts.length === 0 ? (
+          {/* Posts / Tweets / Saved List */}
+          {currentTabState.loading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-purple dark:border-brand-teal"></div>
+            </div>
+          ) : filteredPosts.length === 0 ? (
             <div className="text-center p-8 bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-800 text-gray-500 dark:text-slate-400">
-              No posts yet.
+              {activeTab === 'posts' ? 'No posts yet.' : activeTab === 'tweets' ? 'No tweets yet.' : 'No saved posts yet.'}
             </div>
           ) : (
-            posts.map(post => (
-              <PostCard key={post.id} post={post} onLikeToggle={handleLikeToggle} />
-            ))
+            <div>
+              {filteredPosts.map(post => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  onLikeToggle={handleLikeToggle}
+                  onPostUpdated={handlePostUpdated}
+                  onSaveToggle={handleSaveToggle}
+                />
+              ))}
+
+              {/* Infinite Scroll Bottom Sentinel */}
+              {currentTabState.hasMore && (
+                <div ref={sentinelRef} className="h-6 w-full pointer-events-none" />
+              )}
+
+              {/* Small centered loading spinner / buffering indicator */}
+              {currentTabState.loadingMore && (
+                <div className="flex justify-center items-center py-6">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-brand-purple dark:border-brand-teal border-t-transparent shadow-xs"></div>
+                    <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">
+                      Loading...
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* End of content indicator */}
+              {!currentTabState.hasMore && currentTabState.items.length > 0 && (
+                <div className="text-center py-8 text-xs text-gray-400 dark:text-slate-500 font-medium tracking-wide border-t border-gray-100 dark:border-slate-800/60 mt-4">
+                  {activeTab === 'posts' ? 'No more posts' : activeTab === 'tweets' ? 'No more tweets' : 'No more saved posts'}
+                </div>
+              )}
+            </div>
           )}
         </>
       )}
@@ -325,6 +701,13 @@ const ProfilePage = () => {
           userId={isOwnProfile ? currentUser?.id : profile?.user_id}
           type={followModal}
           onClose={() => setFollowModal(null)}
+          isOwnProfile={isOwnProfile}
+          onFollowerRemoved={() => {
+            setProfile(prev => prev ? {
+              ...prev,
+              followers_count: Math.max(0, (prev.followers_count || 1) - 1),
+            } : prev);
+          }}
         />
       )}
     </div>

@@ -10,7 +10,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.cache import profile_detail_cache_key
-from apps.posts.models import Like, Post
+from apps.posts.models import Like, Post, SavedPost
 from apps.users.models import Follow, Profile, User, FollowRequest, Notification
 
 
@@ -470,6 +470,100 @@ class UserEndpointTests(APITestCase):
             w, h = saved_avatar.size
             self.assertLessEqual(max(w, h), 800)
             self.assertAlmostEqual(w / h, 1600 / 1200, places=2)
+
+    def test_remove_follower_successfully(self):
+        # Bob follows Alice
+        Follow.objects.create(follower=self.other_user, following=self.user)
+        self.assertEqual(self.user.followers.count(), 1)
+
+        self.authenticate(self.user)
+        # Alice checks follower list
+        follower_res = self.client.get(f"/api/users/{self.user.id}/follower/")
+        self.assertEqual(follower_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(follower_res.data["results"]), 1)
+        self.assertEqual(follower_res.data["results"][0]["follower"], self.other_user.username)
+        self.assertEqual(follower_res.data["results"][0]["user_id"], self.other_user.id)
+
+        # Alice removes Bob from followers
+        remove_res = self.client.post(f"/api/users/{self.other_user.id}/remove-follower/")
+        self.assertEqual(remove_res.status_code, status.HTTP_200_OK)
+        self.assertFalse(Follow.objects.filter(follower=self.other_user, following=self.user).exists())
+
+        # Bob no longer in Alice's followers list
+        follower_res_after = self.client.get(f"/api/users/{self.user.id}/follower/")
+        self.assertEqual(follower_res_after.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(follower_res_after.data["results"]), 0)
+
+        # Alice's profile reflects 0 followers
+        profile_res = self.client.get(f"/api/profiles/?username={self.user.username}")
+        self.assertEqual(profile_res.data["followers_count"], 0)
+
+    def test_remove_follower_cuts_off_private_access_and_saved_posts(self):
+        # Alice has a private profile
+        self.user.profile.is_private = True
+        self.user.profile.save()
+
+        # Alice creates a post
+        alice_post = Post.objects.create(user=self.user, caption="Alice's private post")
+
+        # Bob follows Alice
+        Follow.objects.create(follower=self.other_user, following=self.user)
+
+        # Bob saves Alice's post
+        self.authenticate(self.other_user)
+        save_res = self.client.post(f"/api/posts/{alice_post.id}/save/")
+        self.assertEqual(save_res.status_code, status.HTTP_201_CREATED)
+
+        # Bob can view Alice's posts, follower list, following list, and saved post
+        self.assertEqual(self.client.get(f"/api/posts/?username={self.user.username}").status_code, status.HTTP_200_OK)
+        self.assertEqual(self.client.get(f"/api/users/{self.user.id}/follower/").status_code, status.HTTP_200_OK)
+        self.assertEqual(self.client.get(f"/api/users/{self.user.id}/following/").status_code, status.HTTP_200_OK)
+
+        saved_list = self.client.get("/api/posts/?type=saved")
+        self.assertEqual(saved_list.status_code, status.HTTP_200_OK)
+        self.assertIn(alice_post.id, [p["id"] for p in saved_list.data["results"]])
+
+        # Alice removes Bob as a follower
+        self.authenticate(self.user)
+        remove_res = self.client.post(f"/api/users/{self.other_user.id}/remove-follower/")
+        self.assertEqual(remove_res.status_code, status.HTTP_200_OK)
+
+        # Now Bob's access to Alice's private content is immediately cut off
+        self.authenticate(self.other_user)
+        self.assertEqual(self.client.get(f"/api/posts/?username={self.user.username}").status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.get(f"/api/users/{self.user.id}/follower/").status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.get(f"/api/users/{self.user.id}/following/").status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.get(f"/api/posts/{alice_post.id}/").status_code, status.HTTP_403_FORBIDDEN)
+
+        # Alice's post is automatically excluded from Bob's Saved collection
+        saved_list_after = self.client.get("/api/posts/?type=saved")
+        self.assertEqual(saved_list_after.status_code, status.HTTP_200_OK)
+        self.assertNotIn(alice_post.id, [p["id"] for p in saved_list_after.data["results"]])
+
+        # Bob is NOT blocked: Bob can view Alice's basic profile and search for her
+        profile_res = self.client.get(f"/api/profiles/?username={self.user.username}")
+        self.assertEqual(profile_res.status_code, status.HTTP_200_OK)
+        self.assertFalse(profile_res.data["can_view_content"])
+        self.assertFalse(profile_res.data["is_following"])
+
+        search_res = self.client.get(f"/api/search/?q={self.user.username}&type=users")
+        self.assertEqual(search_res.status_code, status.HTTP_200_OK)
+        self.assertIn(self.user.username, [u["username"] for u in search_res.data["results"]])
+
+        # Bob can request to follow Alice again
+        request_follow_res = self.client.post(f"/api/users/{self.user.id}/follow/")
+        self.assertEqual(request_follow_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(request_follow_res.data["status"], "requested")
+
+    def test_remove_follower_validation(self):
+        self.authenticate(self.user)
+        # Cannot remove self
+        self_res = self.client.post(f"/api/users/{self.user.id}/remove-follower/")
+        self.assertEqual(self_res.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Cannot remove someone who is not following
+        non_follower_res = self.client.post(f"/api/users/{self.other_user.id}/remove-follower/")
+        self.assertEqual(non_follower_res.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 

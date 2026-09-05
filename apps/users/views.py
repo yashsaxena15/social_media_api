@@ -273,6 +273,52 @@ def toggle_follow(request, user_id):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+def remove_follower(request, user_id=None):
+    target_user_id = user_id or request.data.get("user_id")
+    target_username = request.data.get("username")
+
+    if target_user_id:
+        follower_user = get_object_or_404(User, id=target_user_id)
+    elif target_username:
+        follower_user = get_object_or_404(User, username=target_username)
+    else:
+        return Response({"error": "User ID or username is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.user == follower_user:
+        return Response({"error": "You cannot remove yourself as a follower."}, status=status.HTTP_400_BAD_REQUEST)
+
+    follow = Follow.objects.filter(follower=follower_user, following=request.user).first()
+    if not follow:
+        return Response({"error": "This user is not following you."}, status=status.HTTP_400_BAD_REQUEST)
+
+    follow.delete()
+
+    Notification.objects.filter(
+        recipient=request.user,
+        sender=follower_user,
+        notification_type__in=["follow", "follow_request"]
+    ).delete()
+    Notification.objects.filter(
+        recipient=follower_user,
+        sender=request.user,
+        notification_type="follow_accepted"
+    ).delete()
+    FollowRequest.objects.filter(requester=follower_user, target=request.user).delete()
+
+    invalidate_follow_caches(follower_user.id, request.user.id)
+
+    return Response(
+        {
+            "message": f"Successfully removed {follower_user.username} from your followers.",
+            "user_id": follower_user.id,
+            "username": follower_user.username,
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def accept_follow_request(request, request_id):
     follow_req = get_object_or_404(FollowRequest, id=request_id)
 
@@ -475,7 +521,7 @@ def following_list(request, user_id):
     if cached_following is not None:
         return Response(cached_following)
 
-    following = Follow.objects.filter(follower=user).select_related("following__profile")
+    following = Follow.objects.filter(follower=user).select_related("following__profile").order_by("-created_at")
     paginator = PageNumberPagination()
     paginator.page_size = 5
     paginator.max_page_size = 10
@@ -503,7 +549,7 @@ def follower_list(request, user_id):
     if cached_follower is not None:
         return Response(cached_follower)
 
-    follower = Follow.objects.filter(following=user).select_related("follower__profile") 
+    follower = Follow.objects.filter(following=user).select_related("follower__profile").order_by("-created_at")
     paginator = PageNumberPagination()
     paginator.page_size = 5
     paginator.max_page_size = 10 

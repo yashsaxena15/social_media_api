@@ -117,12 +117,14 @@ class FollowSerializer(serializers.ModelSerializer):
         fields = ["id", "follower","following","created_at"]
 
 class FollowingSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source="following.id", read_only=True)
     following = serializers.CharField(source="following.username", read_only=True)
+    full_name = serializers.CharField(source="following.profile.full_name", read_only=True, default="")
     profile_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Follow
-        fields = ["id", "following", "profile_image", "created_at"]
+        fields = ["id", "user_id", "following", "full_name", "profile_image", "created_at"]
 
     @extend_schema_field(serializers.ImageField(allow_null=True))
     def get_profile_image(self, obj):
@@ -135,12 +137,14 @@ class FollowingSerializer(serializers.ModelSerializer):
         return None
 
 class FollowerSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source="follower.id", read_only=True)
     follower = serializers.CharField(source="follower.username", read_only=True)
+    full_name = serializers.CharField(source="follower.profile.full_name", read_only=True, default="")
     profile_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Follow
-        fields = ["id", "follower", "profile_image", "created_at"]
+        fields = ["id", "user_id", "follower", "full_name", "profile_image", "created_at"]
 
     @extend_schema_field(serializers.ImageField(allow_null=True))
     def get_profile_image(self, obj):
